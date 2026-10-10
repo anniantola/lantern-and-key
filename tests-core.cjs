@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const {validateSave,shortestRoute,rangedDisadvantage,opposingRolls} = require('./logic.js');
+const {validateSave,shortestRoute,dashMovement,rangedDisadvantage,opposingRolls} = require('./logic.js');
 const root=__dirname;
 const base={version:1,stage:'camp',flags:{},journal:[],checks:[],heroName:'Hero',classId:'fighter',hp:7,potions:1,slots:0};
 test('Legacy v1 saves are still accepted',()=>{assert.equal(validateSave({...base}).stage,'camp');});
@@ -17,8 +17,8 @@ test('Adjacent hostile creature imposes ranged attack disadvantage',()=>{assert.
 test('Game includes pause-to-continue, separate replay and knowledge checks',()=>{const game=fs.readFileSync(path.join(root,'game.js'),'utf8');for(const part of ['returnToMain','renderBeaconTest','practice:continue','rest:spend','quiz:','validateSave','recoveryView','shortestRoute','rangedDisadvantage'])assert.ok(game.includes(part),part);});
 test('Deployable assets and script references exist',()=>{const html=fs.readFileSync(path.join(root,'index.html'),'utf8');assert.match(html,/logic\.js/);assert.match(html,/game\.js/);for(const item of ['sw.js','manifest.webmanifest','style.css','logic.js','assets/forest.svg','assets/crossing.svg','assets/summit.svg'])assert.ok(fs.existsSync(path.join(root,item)),item);});
 const vm=require('node:vm');
-function simulateGame(saved){
- const store={'lantern-and-key.save.v1':JSON.stringify(saved)};
+function simulateGame(saved, extraStore={}){
+ const store={'lantern-and-key.save.v1':JSON.stringify(saved),...extraStore};
  const handlers={};
  const app={innerHTML:'',addEventListener:(type,cb)=>handlers[type]=cb};
  const doc={querySelector:selector=>selector==='#app'?app:null,addEventListener:()=>{}};
@@ -31,7 +31,7 @@ function simulateGame(saved){
  vm.runInNewContext(fs.readFileSync(path.join(root,'game.js'),'utf8'),sandbox,{timeout:5000});
  const act=key=>handlers.click({target:{dataset:{act:key},closest(){return this}}});
  const modal=key=>handlers.click({target:{dataset:{modal:key},closest(){return this}}});
- return {app,act,modal,read:()=>JSON.parse(store['lantern-and-key.save.v1']),store};
+ return {app,act,modal,importFile:file=>handlers.change({target:{id:'importFile',files:[file]}}),read:()=>JSON.parse(store['lantern-and-key.save.v1']),store};
 }
 test('Navigation opens tabs and returns to the same story without overwriting progress',()=>{
  const game=simulateGame({...base,stage:'forest'});
@@ -47,4 +47,59 @@ test('Choosing an action pauses the story and continues without losing the stage
  game.act('rest:spend');assert.equal(game.read().hitDice,0);
  game.act('rest:finish');game.act('continueStory');assert.equal(game.read().stage,'camp');
  assert.match(game.app.innerHTML,/story-screen/);
+});
+
+// v2.3.1 regression cases: stage-correct imports, replay-aware backups, and stacked Dash.
+test('Incomplete encounter saves are rejected before rendering',()=>{
+ const combat={phase:'initiative',enemyHp:11,enemyMax:11,enemyAc:12,round:1,log:[]};
+ const tactics={phase:'player',hero:{x:0,y:2},enemy:{x:4,y:1},enemyHp:14,enemyMax:14,round:1};
+ const beacon={active:true,phase:'player',enemyHp:16,enemyMax:16,round:1};
+ for(const stage of ['combat','crossingBattle','beaconTest'])assert.throws(()=>validateSave({...base,stage}));
+ assert.equal(validateSave({...base,stage:'combat',combat}).stage,'combat');
+ assert.equal(validateSave({...base,stage:'crossingBattle',tactics}).stage,'crossingBattle');
+ assert.equal(validateSave({...base,stage:'beaconTest',finalTest:beacon}).stage,'beaconTest');
+ assert.throws(()=>validateSave({...base,stage:'combat',combat:{...combat,phase:'result',result:null,next:'player'}}));
+ assert.throws(()=>validateSave({...base,stage:'crossingBattle',tactics:{...tactics,phase:'result',result:null,next:'player'}}));
+ assert.throws(()=>validateSave({...base,stage:'beaconTest',finalTest:{...beacon,phase:'result',result:null,next:'player'}}));
+ // A result must have the transition and fields actually read by the renderer.
+ assert.throws(()=>validateSave({...base,stage:'combat',combat:{...combat,phase:'result',result:{title:'oops'},next:'enemy'}}));
+});
+test('Both Dash actions each add 30 feet of movement',()=>{
+ assert.equal(dashMovement(6),12);
+ assert.equal(dashMovement(dashMovement(6)),18);
+ assert.equal(dashMovement(12),18);
+ assert.throws(()=>dashMovement(-1));
+});
+test('Rogue Cunning Dash plus normal Dash yields 90 feet in the bridge encounter',()=>{
+ const tactics={phase:'player',hero:{x:0,y:2},enemy:{x:4,y:1},enemyHp:14,enemyMax:14,round:1,
+  usedMove:0,moveLimit:6,usedAction:false,usedBonus:false,disengaged:false,dodging:false,hidden:false,reactionReady:true,result:null,next:null,log:[]};
+ const game=simulateGame({...base,stage:'crossingBattle',classId:'rogue',level:2,hp:17,tactics});
+ game.act('tactic:cunningDash');assert.equal(game.read().tactics.moveLimit,12);
+ game.act('tactic:continue');
+ game.act('tactic:dash');assert.equal(game.read().tactics.moveLimit,18);
+ assert.equal(game.read().tactics.usedAction,true);
+});
+test('Importing from replay backs up the main campaign, and restores the main campaign',async()=>{
+ const main={...base,stage:'forest',heroName:'MAIN HERO',hp:5};
+ const replay={...base,stage:'camp',heroName:'REPLAY HERO',hp:2,replay:{chapter:4}};
+ const incoming={...base,stage:'trail',heroName:'IMPORTED HERO',hp:6};
+ const game=simulateGame(main,{'lantern-and-key.replay.v1':JSON.stringify(replay)});
+ assert.match(game.app.innerHTML,/REPLAY HERO/);
+ game.importFile({size:400,text:async()=>JSON.stringify(incoming)});
+ await new Promise(setImmediate);await new Promise(setImmediate);
+ const backup=JSON.parse(game.store['lantern-and-key.preimport.v1']);
+ assert.equal(backup.heroName,'MAIN HERO');
+ assert.equal(backup.stage,'forest');
+ assert.equal(game.read().heroName,'IMPORTED HERO');
+ assert.equal(game.store['lantern-and-key.replay.v1'],undefined);
+ game.act('restorePreImport');
+ assert.equal(game.read().heroName,'MAIN HERO');
+ assert.equal(game.read().stage,'forest');
+});
+test('Combat explanation for level-2 Second Wind uses the correct level bonus',()=>{
+ const combat={phase:'player',enemyHp:11,enemyMax:11,enemyAc:12,round:1,log:[],bonusUsed:false};
+ const game=simulateGame({...base,stage:'combat',level:2,hp:6,secondWind:2,combat});
+ assert.match(game.app.innerHTML,/1d10\+2 HP/);
+ game.act('bonus:secondWind');
+ assert.match(game.app.innerHTML,/Second Wind: 1d10 \+ 2 =/);
 });

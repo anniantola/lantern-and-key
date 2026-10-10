@@ -29,12 +29,29 @@
   for(const entry of raw.checks){if(!plain(entry)||typeof entry.success!=='boolean')throw Error('Invalid check history entry.');}
   if(raw.checkpoints!==undefined&&!plain(raw.checkpoints))throw Error('Invalid checkpoints.');
   if(raw.inventory!==undefined&&!plain(raw.inventory))throw Error('Invalid inventory.');
-  if(raw.combat!==undefined&&raw.combat!==null){if(!plain(raw.combat)||!['initiative','result','player'].includes(raw.combat.phase)||!inRange(raw.combat.enemyHp,0,200)||!inRange(raw.combat.enemyMax,1,200)||!Array.isArray(raw.combat.log))throw Error('Invalid combat state.');}
-  if(raw.tactics!==undefined&&raw.tactics!==null){const t=raw.tactics;if(!plain(t)||!plain(t.hero)||!plain(t.enemy)||!inRange(t.hero.x,0,4)||!inRange(t.hero.y,0,3)||!inRange(t.enemy.x,0,4)||!inRange(t.enemy.y,0,3)||!inRange(t.enemyHp,0,200)||!['player','result'].includes(t.phase))throw Error('Invalid tactical state.');}
+  if(raw.combat!==undefined&&raw.combat!==null){
+   const c=raw.combat;
+   if(!plain(c)||!['initiative','result','player'].includes(c.phase)||!inRange(c.enemyHp,0,200)||!inRange(c.enemyMax,1,200)||!inRange(c.enemyAc,1,50)||!Number.isInteger(c.round)||!inRange(c.round,1,500)||!Array.isArray(c.log))throw Error('Invalid combat state.');
+   if(c.phase==='result'&&(!plain(c.result)||typeof c.result.title!=='string'||typeof c.result.story!=='string'||!['player','enemy','bonus','victory','defeat'].includes(c.next)))throw Error('Incomplete combat action result.');
+  }
+  if(raw.tactics!==undefined&&raw.tactics!==null){
+   const t=raw.tactics;
+   if(!plain(t)||!plain(t.hero)||!plain(t.enemy)||!Number.isInteger(t.hero.x)||!Number.isInteger(t.hero.y)||!Number.isInteger(t.enemy.x)||!Number.isInteger(t.enemy.y)||!inRange(t.hero.x,0,4)||!inRange(t.hero.y,0,3)||!inRange(t.enemy.x,0,4)||!inRange(t.enemy.y,0,3)||!inRange(t.enemyHp,0,200)||!inRange(t.enemyMax,1,200)||!Number.isInteger(t.round)||!inRange(t.round,1,500)||!['player','result'].includes(t.phase))throw Error('Invalid tactical state.');
+   if(t.phase==='result'&&(!plain(t.result)||typeof t.result.title!=='string'||typeof t.result.body!=='string'||!['victory','defeat','enemy','player','bonus','move','afterAction'].includes(t.next)))throw Error('Incomplete tactical action result.');
+  }
   if(raw.pending!==undefined&&raw.pending!==null&&!plain(raw.pending))throw Error('Invalid pending check.');
   if(raw.storyResult!==undefined&&raw.storyResult!==null&&(!plain(raw.storyResult)||typeof raw.storyResult.title!=='string'||typeof raw.storyResult.body!=='string'))throw Error('Invalid action result.');
   if(raw.outcome!==undefined&&raw.outcome!==null&&(!plain(raw.outcome)||typeof raw.outcome.title!=='string'||typeof raw.outcome.body!=='string'))throw Error('Invalid outcome.');
-  if(raw.finalTest!==undefined&&raw.finalTest!==null&&(!plain(raw.finalTest)||typeof raw.finalTest.active!=='boolean'||!inRange(raw.finalTest.enemyHp,0,200)))throw Error('Invalid final encounter.');
+  if(raw.finalTest!==undefined&&raw.finalTest!==null){
+   const t=raw.finalTest;
+   if(!plain(t)||typeof t.active!=='boolean'||!inRange(t.enemyHp,0,200)||!inRange(t.enemyMax,1,200)||!['player','result'].includes(t.phase)||!Number.isInteger(t.round)||!inRange(t.round,1,500))throw Error('Invalid final encounter.');
+   if(t.phase==='result'&&(!plain(t.result)||typeof t.result.title!=='string'||typeof t.result.body!=='string'||!['win','enemy','round','player'].includes(t.next)))throw Error('Incomplete final-encounter result.');
+  }
+  // Each battle-specific story stage requires its own active encounter. Do not let
+  // apparently valid but incomplete imports render an empty or broken battle view.
+  if(raw.stage==='combat'&&!plain(raw.combat))throw Error('The Warden encounter is missing its combat state.');
+  if(raw.stage==='crossingBattle'&&!plain(raw.tactics))throw Error('The bridge encounter is missing its tactical state.');
+  if(raw.stage==='beaconTest'&&(!plain(raw.finalTest)||raw.finalTest.active!==true))throw Error('The beacon encounter is missing its active state.');
   // Validate nested UI values that were previously interpolated as trusted numbers.
   function roll(r){if(!r)return;if(!plain(r)||!inRange(r.die,1,20)||!inRange(r.total,-100,200)||!inRange(r.dc,0,100)||!inRange(r.modifier,-50,50)||!['advantage','disadvantage','normal'].includes(r.mode))throw Error('Invalid die-roll record.');if(!inRange(r.die1,1,20)||(r.die2!==null&&r.die2!==undefined&&!inRange(r.die2,1,20)))throw Error('Invalid dice.');}
   if(raw.storyResult?.roll)roll(raw.storyResult.roll);
@@ -65,7 +82,8 @@
   }
   return null;
  }
+ function dashMovement(current,speed=6){if(!Number.isInteger(current)||current<0||current>60||!Number.isInteger(speed)||speed<=0||speed>60)throw Error('Invalid movement allowance.');return current+speed;}
  function rangedDisadvantage(ranged,adjacentHostile,canSee=true,incapacitated=false){return Boolean(ranged&&adjacentHostile&&canSee&&!incapacitated);}
  function opposingRolls(adv,dis){return adv&&dis?'normal':adv?'advantage':dis?'disadvantage':'normal';}
- return {validateSave,shortestRoute,stepCost,rangedDisadvantage,opposingRolls};
+ return {validateSave,shortestRoute,stepCost,dashMovement,rangedDisadvantage,opposingRolls};
 });

@@ -1,4 +1,4 @@
-# Lantern & Key — Complete learning campaign (v2.3)
+# Lantern & Key — Complete learning campaign (v2.3.1)
 
 **A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
 
@@ -108,3 +108,13 @@ See [RULES-AUDIT.md](RULES-AUDIT.md) for the audited rule-by-rule choices, fixes
 ### License and attribution
 
 Game mechanics adapted from the **System Reference Document 5.2.1**, © Wizards of the Coast LLC, available under **Creative Commons Attribution 4.0 International (CC BY 4.0)**. Sources: https://www.dndbeyond.com/srd and https://creativecommons.org/licenses/by/4.0/ . Original adventure, design and illustrations are an independent fan/educational work. **Not an official Dungeons & Dragons product; not affiliated with or endorsed by Wizards of the Coast.** Rules are summarized and simplified, not copied wholesale.
+
+
+## v2.3.1 corrective release
+
+- Rejects Warden, bridge, and beacon saves whose required encounter objects are missing or whose paused result cannot be continued. Imports fail safely before replacing any progress.
+- Importing while replaying now backs up the **main** campaign slot rather than the temporary replay, so Restore pre-import restores the correct timeline.
+- Normal Dash and Cunning Action: Dash now each add the character's 30-foot Speed instead of resetting the movement allowance; both together provide 90 feet (18 grid units) on this tutorial map.
+- Second Wind's die notation shows the current Fighter level; the beacon enemy's attack math shows disadvantage dice only when rolled.
+- Adds regression tests for encounter saves, stacked Dash movement, and importing during chapter replay.
+- Existing save schema, fixed bottom tabs, app installation, and GitHub Actions workflow remain unchanged.
