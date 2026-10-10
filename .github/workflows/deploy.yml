@@ -24,6 +24,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Set up Node for pre-deployment checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify JavaScript syntax
+        run: |
+          node --check game.js
+          node --check logic.js
+          node --check sw.js
+      - name: Run rules and save-safety tests
+        run: node --test tests-core.cjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload website
