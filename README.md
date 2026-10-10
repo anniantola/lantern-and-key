@@ -1,6 +1,18 @@
-# Lantern & Key — Complete learning campaign (v2.4)
+# Lantern & Key — Complete learning campaign (v2.4.1)
 
 **A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
+
+## v2.4.1 — Story consistency and consequence fixes (spoiler-free)
+
+- Choices now reflect the items you actually collected; there is a meaningful alternative to the key-dependent resolution.
+- Spending a spark to protect your campsite has lasting protection, even if a later search fails.
+- An interrupted Long Rest cannot automatically succeed at the same unsafe campsite. You can find shelter or relocate at a cost.
+- Village verdicts, investigation clues and NPC dialogue match the checks and evidence you actually obtained.
+- Travel and bridge descriptions adapt to the path you took.
+- Final decisions have distinct narrative consequences, and old saves with a failed council verdict are corrected from their journal.
+- Automated narrative-state tests run as part of the existing GitHub Actions checks.
+
+**Save compatibility:** Existing v2.4 and earlier JSON saves remain supported; main and replay slots remain separate. No additional permissions, workflow changes, or asset folders are required.
 
 ## v2.4 — The Last Lantern matters (no story spoilers)
 

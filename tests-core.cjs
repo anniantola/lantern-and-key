@@ -17,16 +17,17 @@ test('Adjacent hostile creature imposes ranged attack disadvantage',()=>{assert.
 test('Game includes pause-to-continue, separate replay and knowledge checks',()=>{const game=fs.readFileSync(path.join(root,'game.js'),'utf8');for(const part of ['returnToMain','renderBeaconTest','practice:continue','rest:spend','quiz:','validateSave','recoveryView','shortestRoute','rangedDisadvantage'])assert.ok(game.includes(part),part);});
 test('Deployable assets and script references exist',()=>{const html=fs.readFileSync(path.join(root,'index.html'),'utf8');assert.match(html,/logic\.js/);assert.match(html,/game\.js/);for(const item of ['sw.js','manifest.webmanifest','style.css','logic.js','assets/forest.svg','assets/crossing.svg','assets/summit.svg'])assert.ok(fs.existsSync(path.join(root,item)),item);});
 const vm=require('node:vm');
-function simulateGame(saved, extraStore={}){
+function simulateGame(saved, extraStore={}, fixedRoll=null){
  const store={'lantern-and-key.save.v1':JSON.stringify(saved),...extraStore};
  const handlers={};
  const app={innerHTML:'',addEventListener:(type,cb)=>handlers[type]=cb};
  const doc={querySelector:selector=>selector==='#app'?app:null,addEventListener:()=>{}};
+ const mockMath=Object.create(Math);if(fixedRoll!==null)mockMath.random=()=>fixedRoll;
  const sandbox={
   window:{LanternCore:require('./logic.js'),matchMedia:()=>({matches:false}),addEventListener:()=>{},scrollTo:()=>{}},
   document:doc,localStorage:{getItem:key=>store[key]||null,setItem:(key,value)=>store[key]=String(value),removeItem:key=>delete store[key]},
   navigator:{userAgent:'Node automated test'},location:{protocol:'file:'},confirm:()=>true,alert:message=>{throw new Error(message)},
-  requestAnimationFrame:fn=>fn(),console,Math,Date,JSON,Number,String,Array,Object,Promise,setTimeout:()=>{},
+  requestAnimationFrame:fn=>fn(),console,Math:mockMath,Date,JSON,Number,String,Array,Object,Promise,setTimeout:()=>{},
  };
  vm.runInNewContext(fs.readFileSync(path.join(root,'game.js'),'utf8'),sandbox,{timeout:5000});
  const act=key=>handlers.click({target:{dataset:{act:key},closest(){return this}}});
@@ -124,7 +125,7 @@ test('Existing saves that already kept the lantern gain it automatically',()=>{
 });
 test('Restoring or returning the lantern never creates an inventory copy',()=>{
  for(const action of ['restore','return']){
-  const game=simulateGame({...base,stage:'reveal',ending:null,inventory:{rope:1,rations:2,torch:1,smoke:1}});
+  const game=simulateGame({...base,stage:'reveal',ending:null,flags:action==='restore'?{key:true}:{},inventory:{rope:1,rations:2,torch:1,smoke:1}});
   game.act(action);
   assert.equal(game.read().inventory.lantern,0);
   game.modal('inventory');
@@ -215,7 +216,7 @@ test('The final lantern choice branches the ending and preserves the artifact',(
  assert.equal(game.read().lanternSparks,1);
  assert.equal(game.read().inventory.lantern,1);
  game.act('continueStory');
- assert.match(game.app.innerHTML,/new light somewhere below/);
+ assert.match(game.app.innerHTML,/chain of watch-lights/);
 });
 test('The final choice never traps a player who has spent every lantern spark',()=>{
  const game=simulateGame({...base,stage:'lanternOath',ending:'take',inventory:{lantern:1},lanternSparks:0});
@@ -261,4 +262,114 @@ test('Finishing the final check leads to the expanded lantern decision, not stra
  game.act('rollCheck');
  assert.equal(game.read().stage,'lanternOath');
  assert.equal(game.read().inventory.lantern,1);
+});
+
+// v2.4.1 narrative-integrity regressions. The browser-facing code is exercised
+// through its own event handlers and localStorage, not isolated fake state reducers.
+test('Restoring the vault without the key requires a successful improvised-repair check',()=>{
+ const fail=simulateGame({...base,stage:'reveal',flags:{},ending:null}, {}, 0);
+ assert.doesNotMatch(fail.app.innerHTML,/data-act="restore"/);
+ assert.match(fail.app.innerHTML,/data-act="improviseBeacon"/);
+ fail.act('restore');assert.equal(fail.read().stage,'reveal');
+ fail.act('improviseBeacon');assert.equal(fail.read().pending.key,'improviseBeacon');
+ fail.act('rollCheck');assert.equal(fail.read().flags.triedBeaconRepair,true);
+ assert.equal(fail.read().stage,'reveal');assert.equal(fail.read().flags.key,undefined);
+ fail.act('continueStory');assert.doesNotMatch(fail.app.innerHTML,/data-act="improviseBeacon"/);
+ assert.match(fail.app.innerHTML,/data-act="take"/);
+ const pass=simulateGame({...base,stage:'reveal',flags:{},ending:null}, {}, .99);
+ pass.act('improviseBeacon');pass.act('rollCheck');
+ assert.equal(pass.read().stage,'ending');assert.equal(pass.read().ending,'restore');
+ assert.equal(pass.read().flags.repairedWithoutKey,true);
+ assert.equal(pass.read().storyResult.roll.success,true);
+ assert.match(pass.read().storyResult.body,/align the mechanism by hand/);
+ assert.equal(pass.read().inventory.lantern,0);
+});
+test('Silver key unlocks the direct restoration action without a repair roll',()=>{
+ const g=simulateGame({...base,stage:'reveal',flags:{key:true},ending:null});
+ assert.match(g.app.innerHTML,/data-act="restore"/);
+ assert.doesNotMatch(g.app.innerHTML,/data-act="improviseBeacon"/);
+ g.act('restore');assert.equal(g.read().ending,'restore');
+ assert.match(g.read().storyResult.body,/silver key in the lantern/);
+});
+test('Existing keyless restoration saves migrate to a coherent alternative',()=>{
+ const old={...base,stage:'ending',ending:'restore',flags:{},outcome:{title:'The lantern shines again',body:'You place the silver key in the lantern’s socket. Blue light floods the chamber.'},storyResult:{title:'The lantern shines again',body:'You place the silver key in the lantern’s socket. Blue light floods the chamber.',action:'Restore',fromStage:'reveal'},journal:[{text:'The lantern shines again: You place the silver key in the lantern’s socket.',kind:'story'}]};
+ const g=simulateGame(old);
+ assert.match(g.app.innerHTML,/align the old mechanism by hand/);
+ g.act('continueStory');assert.equal(g.read().flags.repairedWithoutKey,true);
+ assert.doesNotMatch(g.read().journal[0].text,/place the silver key/);
+});
+test('Lantern camp protection survives a later failed Survival check',()=>{
+ const g=simulateGame({...base,stage:'camp',ending:'take',inventory:{lantern:1,rations:2},lanternSparks:2,flags:{lanternWard:true,shelter:true},pending:{key:'c:campShelter',name:'Wisdom (Survival)',skill:'survival',dc:12,bonus:1,mode:'normal',actionCue:{label:'Find shelter',fromStage:'camp',hpBefore:7}}}, {}, 0);
+ g.act('rollCheck');assert.equal(g.read().flags.shelter,true);
+ assert.match(g.read().storyResult.body,/lantern ward still keeps your camp safe/);
+ g.act('continueStory');g.act('c:longRest');assert.equal(g.read().flags.longRested,true);
+ assert.equal(g.read().lanternSparks,3);
+});
+test('A failed village council roll does not convert collected evidence into a solved case',()=>{
+ const g=simulateGame({...base,stage:'council',flags:{villageEvidence:true},level:1}, {}, 0);
+ g.act('c:council');g.act('rollCheck');
+ assert.equal(g.read().stage,'trial');assert.equal(g.read().flags.villageSolved,false);
+ assert.match(g.read().storyResult.body,/cannot accept all your claims/);
+});
+test('An old failed council verdict is reconciled from the save journal, leaving successes intact',()=>{
+ for(const [verdict,solved] of [['The truth needs more work: The council investigates.',false],['A fair verdict: The villagers agree.',true]]){
+  const g=simulateGame({...base,stage:'trial',flags:{villageEvidence:true,villageSolved:!solved},journal:[{text:verdict,kind:'story'}]});
+  g.act('c:toArchive');assert.equal(g.read().flags.villageSolved,solved);
+ }
+});
+test('Merchant observations are based on the merchant ledger before the mill is visited',()=>{
+ const g=simulateGame({...base,stage:'market',flags:{}}, {}, .99);
+ g.act('c:marketInsight');g.act('rollCheck');
+ const result=g.read().storyResult.body;
+ assert.match(result,/merchant’s own ledger/);assert.match(result,/not yet seen the miller’s records/);
+ assert.equal(g.read().flags.villageEvidence,undefined);
+});
+test('Watermill confrontation addresses a present worker, not an absent treasurer',()=>{
+ const g=simulateGame({...base,stage:'witness',flags:{}}, {}, .99);
+ assert.match(g.app.innerHTML,/Press the mill worker/);
+ g.act('c:confront');g.act('rollCheck');
+ assert.match(g.read().storyResult.body,/mill worker/);
+ assert.doesNotMatch(g.read().storyResult.body,/treasurer admits/);
+ assert.equal(g.read().flags.villageEvidence,true);
+});
+test('Unscouted and rope-secured travel no longer claims the player took other routes',()=>{
+ const g=simulateGame({...base,stage:'camp',flags:{},inventory:{rope:1,rations:2}});
+ g.act('c:toTrail');g.act('continueStory');
+ assert.match(g.app.innerHTML,/without scouting/);
+ assert.doesNotMatch(g.app.innerHTML,/muddy detour reminded/);
+ assert.equal(g.read().inventory.rations,2);
+ g.act('c:toBridge');g.act('continueStory');g.act('c:ropeCross');g.act('continueStory');
+ assert.match(g.app.innerHTML,/rope still stretches/);
+ assert.doesNotMatch(g.app.innerHTML,/cost of crossing is written/);
+ assert.equal(g.read().flags.bridgeFought,undefined);
+});
+test('An unsafe Long Rest cannot succeed by repeating it; relocating camp resolves the obstacle',()=>{
+ const g=simulateGame({...base,stage:'camp',flags:{},inventory:{rope:1,rations:2},hp:7});
+ g.act('c:longRest');assert.equal(g.read().flags.longInterrupted,true);
+ assert.equal(g.read().flags.longRested,undefined);
+ g.act('continueStory');g.act('c:longRest');assert.equal(g.read().flags.longRested,undefined);
+ g.act('continueStory');assert.match(g.app.innerHTML,/data-act="c:relocateCamp"/);
+ g.act('c:relocateCamp');assert.equal(g.read().flags.shelter,true);
+ assert.equal(g.read().inventory.rations,1);
+ g.act('continueStory');g.act('c:longRest');assert.equal(g.read().flags.longRested,true);
+});
+test('Final resolution alternatives have distinct consequences in prose and preserved ownership',()=>{
+ const seen=[];
+ for(const [choiceKey,ending,cost] of [['c:lanternGuard','take',0],['c:lanternShare','take',1],['c:lanternReveal','take',2],['c:lanternHonor','restore',0],['c:lanternCommunity','return',0]]){
+  const g=simulateGame({...base,stage:'lanternOath',level:2,hp:20,ending,flags:{villageSolved:true,key:true},inventory:{lantern:ending==='take'?1:0},lanternSparks:ending==='take'?3:0});
+  g.act(choiceKey);assert.equal(g.read().stage,'epilogue');
+  if(ending==='take')assert.equal(g.read().lanternSparks,3-cost);
+  g.act('continueStory');seen.push(g.app.innerHTML.match(/<div class="prose"><p>(.*?)<\/p>/)?.[1]);
+ }
+ assert.equal(seen.length,5);assert.equal(new Set(seen).size,5);
+});
+
+test('v2.4 saves repair overwritten lantern shelter without consuming another spark',()=>{
+ const save={...base,stage:'camp',ending:'take',inventory:{lantern:0,rations:2},lanternSparks:1,flags:{lanternWard:true,shelter:false}};
+ const g=simulateGame(save);
+ assert.match(g.app.innerHTML,/lantern ward still encloses the camp/);
+ g.act('c:longRest');
+ assert.equal(g.read().flags.longRested,true);
+ assert.equal(g.read().lanternSparks,2);
+ assert.equal(g.read().inventory.lantern,1);
 });

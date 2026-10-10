@@ -59,3 +59,8 @@ Primary references: D&D Beyond 2024 Basic Rules, **Playing the Game**, **Charact
 A migration deliberately treats `ending: "take"` as authoritative and grants the carried item even if earlier backups contained `inventory.lantern: 0`; its unique item persists after sparks are spent. New save fields default safely to preserve old data.
 
 Chapter replays are separate from the main campaign, rather than rewinding the main slot.
+
+
+## v2.4.1 — Story-state integrity
+
+Causal-prerequisite checks for the original vault, village evidence versus outcome, camp shelter, travel routes and the ending. These are **narrative correctness changes**, not modifications to official D&D rules. The manual-repair alternative is an original tutorial skill challenge, and the lantern is an original artifact. Old saves with contradictory council-state flags are reconciled using recorded verdicts where available.
