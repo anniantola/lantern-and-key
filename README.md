@@ -1,6 +1,6 @@
 # Lantern & Key — a beginner tabletop-RPG tutorial
 
-A complete, **single-player, mobile-friendly HTTPS website** that teaches core D&D-compatible mechanics through an original branching fantasy adventure. Version 1.1.
+A complete, **single-player, mobile-friendly HTTPS website** that teaches core D&D-compatible mechanics through an original branching fantasy adventure. Version 1.2.
 
 ## Deploy to GitHub Pages — via GitHub Actions
 
@@ -46,3 +46,7 @@ A service worker caches the complete local site after the first online HTTPS vis
 The original story and application code are copyright 2026 and may be modified by the project owner. Some game mechanics are adapted from **System Reference Document 5.2.1** by Wizards of the Coast, licensed under **Creative Commons Attribution 4.0 International (CC BY 4.0)**: https://www.dndbeyond.com/srd and https://creativecommons.org/licenses/by/4.0/. Rules text is substantially rewritten and simplified for educational purposes. Not affiliated with, sponsored by or endorsed by Wizards of the Coast. The name “Dungeons & Dragons” is used only descriptively in documentation.
 
 No external gameplay libraries or APIs. Three local original SVG illustrations, SVG icon, webmanifest, stylesheet, one JS file. Optional Google Fonts download on first load; system fallbacks work offline.
+
+## Version 1.2 — clearer combat feedback
+
+Combat now pauses after **every resolved action**. A result card explains the action, dice rolls, damage/healing, and the before/after HP. Press **Continue** to advance to the opponent's response or your next action. Both combatants have prominent, labeled HP bars, visible on small screens. Existing version-1 saves and JSON exports remain compatible.

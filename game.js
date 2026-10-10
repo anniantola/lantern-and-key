@@ -202,66 +202,126 @@ function finish(which){s.ending=which;s.stage='ending';let title,desc;
  outcome(title,desc);record(`Adventure completed: ${which}.`);commit();}
 function setupCombat(intro) {
  s.stage='combat';s.pending=null;
- s.combat={phase:'initiative',enemyHp:11,enemyMax:11,enemyAc:12,round:1,firstAdv:!!s.flags.weakness,hidden:false,dodging:false,bonusUsed:false,secondWindUsed:false,initiative:null,last:null,log:[intro],ended:false};
+ s.combat={phase:'initiative',enemyHp:11,enemyMax:11,enemyAc:12,round:1,firstAdv:!!s.flags.weakness,hidden:false,dodging:false,bonusUsed:false,secondWindUsed:false,initiative:null,last:null,result:null,next:null,log:[intro],ended:false};
  s.outcome=null; record('Combat begins: the Echo Warden approaches.','combat');commit();
 }
 function clog(text) { s.combat.log.unshift(text);s.combat.log=s.combat.log.slice(0,35);record(text,'combat'); }
+// A combat event is shown by itself before any further turn can resolve.
+// 'next' is a serialisable transition, so JSON saves work even mid-combat.
+function combatResult({title,story,math='',type='neutral',number='',from='',before=null,after=null,next='player',teaching=''}) {
+ const c=s.combat;
+ c.phase='result'; c.next=next;
+ c.result={title,story,math,type,number,from,before,after,teaching};
+ commitCombat();
+}
+function commitCombat() {
+ commit(false);
+ requestAnimationFrame(()=>{
+  const target=document.querySelector('.combat-card');
+  if(target?.scrollIntoView)target.scrollIntoView({block:'start',behavior:'smooth'});
+ });
+}
 function enemyAttack() {
  const c=s.combat;if(!c || c.enemyHp<=0 || s.hp<=0) return;
+ const before=s.hp;
  const a=rand(20),b=c.dodging?rand(20):null,die=b===null?a:Math.min(a,b),total=die+3;
  const hits=(die===20 || (die!==1 && total>=hero().ac));
  const dmg=hits?rand(4)+1+(die===20?rand(4):0):0;
  if(hits) s.hp=clamp(s.hp-dmg,0,maxHp());
  c.last={side:'enemy',a,b,die,total,ac:hero().ac,damage:dmg,hit:hits};
- clog(`Echo Warden: ${a}${b===null?'':` / ${b} (disadvantage → ${die})`} + 3 = ${total} vs AC ${hero().ac}. ${hits?`Hit for ${dmg} damage.`:'Miss!'}`);
- c.dodging=false;
- if(s.hp<=0){s.flags.defeatSource='combat';s.stage='defeat';s.combat=null;outcome('You fall to the ground','Your HP have reached 0. In a normal D&D game, this usually means unconsciousness and death saving throws. For this tutorial, you can retry the encounter from a safe checkpoint.',false);}
+ const dodged=c.dodging;c.dodging=false;
+ const result=`Echo Warden: ${a}${b===null?'':` / ${b} (disadvantage → ${die})`} + 3 = ${total} vs AC ${hero().ac}. ${hits?`Hit for ${dmg} damage.`:'Miss!'}`;
+ clog(result);
+ combatResult({
+  title:hits?(die===20?'The Warden lands a critical blow!':'The Warden strikes you!'):'The Warden misses!',
+  story:hits?`The stone guardian's fist connects${die===20?' with devastating force':''}. You take ${dmg} damage.`:dodged?'You weave out of the way. Your Dodge action made its attack less accurate.':'You step clear as the guardian’s stone fist crashes past you.',
+  math:`Attack: ${a}${b===null?'':` and ${b} → ${die} (disadvantage)`} + 3 = ${total} vs your AC ${hero().ac} · ${hits?'HIT':'MISS'}`,
+  type:hits?'hurt':'defended',number:hits?`−${dmg} HP`:'MISS',from:'hero',before,after:s.hp,
+  next:s.hp<=0?'defeat':'player',
+  teaching:'The Warden rolled a d20 against your Armor Class. Damage changes your Hit Points only on a hit.'
+ });
 }
 function rollInitiative(){
- const c=s.combat;if(!c || c.phase!=='initiative')return;
- const p=rand(20),e=rand(20),playerBonus=hero().stats.DEX===16?3:hero().stats.DEX===14?2:1;
+ const c=s.combat;if(!c||c.phase!=='initiative')return;
+ const p=rand(20),e=rand(20),playerBonus=Math.floor((hero().stats.DEX-10)/2);
  const playerTotal=p+playerBonus,enemyTotal=e+1,first=playerTotal>=enemyTotal;
  c.initiative={p,e,playerBonus,playerTotal,enemyTotal,first};
  clog(`Initiative: you rolled ${p} ${signed(playerBonus)} = ${playerTotal}; Warden rolled ${e} +1 = ${enemyTotal}. ${first?'You act first.':'The Warden acts first.'}`);
- c.phase='player';if(!first)enemyAttack();commit(false);
+ combatResult({title:first?'You act first!':'The Warden acts first!',story:first?'You react faster than the guardian. Choose your opening move.':'The guardian is faster. See what it does before choosing your move.',math:`You: ${p} ${signed(playerBonus)} = ${playerTotal} · Warden: ${e} +1 = ${enemyTotal}`,type:first?'defended':'neutral',number:first?'FIRST':'SECOND',next:first?'player':'enemy',teaching:'Initiative decides turn order. Your initiative modifier comes from Dexterity.'});
 }
-function nextTurn() {
- const c=s.combat;if(!c)return;
- if(c.enemyHp<=0){s.combat=null;s.flags.victory=true;s.stage='reveal';outcome('The enchantment shatters','The Echo Warden collapses into harmless dust. Its last words are barely audible: “Keep the light alive.”',true);commit();return;}
- if(!c.hidden) enemyAttack(); else {clog('The Warden searches the fallen crates for you, but cannot find you.');}
- if(s.hp<=0){commit(false);return;}
- c.round++;c.bonusUsed=false;c.phase='player';commit(false);
+function finishCombatVictory(){
+ s.combat=null;s.flags.victory=true;s.stage='reveal';
+ outcome('The enchantment shatters','The Echo Warden collapses into harmless dust. Its last words are barely audible: “Keep the light alive.”',true);commit();
+}
+function finishCombatDefeat(){
+ s.flags.defeatSource='combat';s.stage='defeat';s.combat=null;
+ outcome('You fall to the ground','Your HP have reached 0. In a normal D&D game, this usually means unconsciousness and death saving throws. For this tutorial, you can retry the encounter from a safe checkpoint.',false);commit();
+}
+function advanceCombat() {
+ const c=s.combat;if(!c||c.phase!=='result')return;
+ const next=c.next;c.result=null;c.next=null;
+ if(next==='victory'){finishCombatVictory();return;}
+ if(next==='defeat'){finishCombatDefeat();return;}
+ if(next==='enemy'){
+  if(c.hidden){
+   clog('The Warden searches the fallen crates but cannot find you.');
+   combatResult({title:'The Warden cannot find you',story:'The guardian swings blindly at the shadows. Your hiding place holds, and you remain unseen.',type:'defended',number:'SAFE',next:'player',teaching:'Your successful Hide check makes the Warden lose track of you. Your next attack can gain advantage.'});
+  }else enemyAttack();
+  return;
+ }
+ if(next==='player'){
+  // Begin a new round after the enemy reaction, not after a healing bonus action.
+  if(c.resultRoundDone){c.round++;c.bonusUsed=false;c.resultRoundDone=false;}
+  c.phase='player';commitCombat();return;
+ }
+ if(next==='bonus'){c.phase='player';commitCombat();return;}
 }
 function useBonus(kind) {
  const c=s.combat;if(!c||c.phase!=='player'||c.bonusUsed)return;
- if(kind==='potion' && s.potions>0){const r1=rand(4),r2=rand(4),n=r1+r2+2,old=s.hp;s.hp=clamp(s.hp+n,0,maxHp());s.potions--;c.bonusUsed=true;clog(`Bonus Action — Healing Potion: 2d4 + 2 = ${r1} + ${r2} + 2 = ${n}; HP ${old} → ${s.hp}. You still have your action.`);commit(false);}
- if(kind==='secondWind' && s.classId==='fighter'&&!c.secondWindUsed){const n=rand(10)+1,old=s.hp;s.hp=clamp(s.hp+n,0,maxHp());c.secondWindUsed=true;c.bonusUsed=true;clog(`Bonus Action — Second Wind: 1d10 + 1 = ${n}; HP ${old} → ${s.hp}. You still have your action.`);commit(false);}
+ if(kind==='potion' && s.potions>0 && s.hp<maxHp()){
+  const r1=rand(4),r2=rand(4),n=r1+r2+2,old=s.hp;
+  s.hp=clamp(s.hp+n,0,maxHp());s.potions--;c.bonusUsed=true;
+  clog(`Bonus Action — Healing Potion: 2d4 + 2 = ${r1} + ${r2} + 2 = ${n}; HP ${old} → ${s.hp}. You still have your action.`);
+  combatResult({title:'Your potion restores health',story:`You recover ${s.hp-old} HP and still have your main action this turn.`,math:`Healing: ${r1} + ${r2} + 2 = ${n} (capped at ${maxHp()} maximum HP)`,type:'heal',number:`+${s.hp-old} HP`,from:'hero',before:old,after:s.hp,next:'bonus',teaching:'This tutorial treats drinking a healing potion as a Bonus Action. The usual rules may differ depending on the ruleset or DM.'});
+ }
+ if(kind==='secondWind' && s.classId==='fighter'&&!c.secondWindUsed && s.hp<maxHp()){
+  const n=rand(10)+1,old=s.hp;s.hp=clamp(s.hp+n,0,maxHp());c.secondWindUsed=true;c.bonusUsed=true;
+  clog(`Bonus Action — Second Wind: 1d10 + 1 = ${n}; HP ${old} → ${s.hp}. You still have your action.`);
+  combatResult({title:'You catch your second wind',story:`You steady yourself and regain ${s.hp-old} HP. You still have your main action.`,math:`Second Wind: 1d10 + 1 = ${n} (capped at ${maxHp()} HP)`,type:'heal',number:`+${s.hp-old} HP`,from:'hero',before:old,after:s.hp,next:'bonus',teaching:'Second Wind is a Fighter feature that restores HP without consuming your Action.'});
+ }
 }
 function combatAction(kind) {
  const c=s.combat;if(!c||c.phase!=='player')return;
  if(kind==='flee'){s.combat=null;s.stage='ending';s.ending='escape';outcome('A tactical retreat','You take the Disengage action and escape the chamber without provoking an opportunity attack. The lantern remains beneath the tavern.');commit();return;}
- if(kind==='dodge'){c.dodging=true;clog('You take the Dodge action. The Warden has disadvantage on its next attack against you.');nextTurn();return;}
+ if(kind==='dodge'){
+  c.dodging=true;c.resultRoundDone=true;
+  clog('You take the Dodge action. The Warden has disadvantage on its next attack against you.');
+  combatResult({title:'You brace for the attack',story:'You shift your weight, ready to evade the Warden. Its next attack will use disadvantage.',type:'defended',number:'DODGE',next:'enemy',teaching:'Dodge uses your Action. The Warden will roll two d20s and keep the lower one.'});return;
+ }
  if(kind==='hide'&&s.classId==='rogue') {
- const die=rand(20),total=die+hero().skills.stealth,success=total>=15;
- c.hidden=success;clog(`Hide: ${die} + ${hero().skills.stealth} = ${total} vs DC 15. ${success?'You disappear behind the crates. Your next attack can have advantage.':'The Warden spots you.'}`);nextTurn();return;
+  const die=rand(20),total=die+hero().skills.stealth,success=total>=15;c.hidden=success;c.resultRoundDone=true;
+  clog(`Hide: ${die} + ${hero().skills.stealth} = ${total} vs DC 15. ${success?'You disappear behind the crates. Your next attack can have advantage.':'The Warden spots you.'}`);
+  combatResult({title:success?'You vanish into the shadows':'The Warden spots you',story:success?'You slip behind the fallen crates. The guardian loses sight of you.':'A loose stone shifts underfoot; the guardian tracks your movement.',math:`Stealth: ${die} + ${hero().skills.stealth} = ${total} vs DC 15`,type:success?'defended':'neutral',number:success?'HIDDEN':'SPOTTED',next:'enemy',teaching:'Hiding uses your Action here. If the guardian loses you, your next attack can have advantage.'});return;
  }
  if(kind==='missile'&&s.classId==='wizard'&&s.slots>0){
- const rolls=[rand(4)+1,rand(4)+1,rand(4)+1],damage=rolls.reduce((a,b)=>a+b,0);s.slots--;
- c.enemyHp=Math.max(0,c.enemyHp-damage);c.hidden=false;
- clog(`Magic Missile (1 spell slot): three darts hit automatically for ${rolls.join(' + ')} = ${damage} force damage.`);
- nextTurn();return;
+  const before=c.enemyHp,rolls=[rand(4)+1,rand(4)+1,rand(4)+1],damage=rolls.reduce((a,b)=>a+b,0);s.slots--;
+  c.enemyHp=Math.max(0,c.enemyHp-damage);c.hidden=false;c.resultRoundDone=true;
+  clog(`Magic Missile (1 spell slot): three darts hit automatically for ${rolls.join(' + ')} = ${damage} force damage.`);
+  combatResult({title:c.enemyHp===0?'Your magic breaks the Warden!':'Three bolts strike the Warden!',story:`Three glowing darts slam into the stone guardian, dealing ${damage} force damage.`,math:`Magic Missile: ${rolls.join(' + ')} = ${damage} · 1 spell slot used`,type:'damage',number:`−${damage} HP`,from:'enemy',before,after:c.enemyHp,next:c.enemyHp===0?'victory':'enemy',teaching:'Magic Missile hits automatically. It consumes one level-1 spell slot and does not require an attack roll.'});return;
  }
  if(kind==='attack') {
- const extraAdv=c.firstAdv||c.hidden;const p=rand(20),q=extraAdv?rand(20):null,die=q===null?p:Math.max(p,q),critical=die===20, hit=critical||(die!==1&&die+hero().attack>=c.enemyAc);
- const damageDice=hit?[rand(hero().damageDie)]:[];
- if(hit&&critical)damageDice.push(rand(hero().damageDie));
- let sneak=[];
- if(hit&&s.classId==='rogue'&&c.hidden){sneak=[rand(6)];if(critical)sneak.push(rand(6));}
- const dmg=hit?damageDice.reduce((a,b)=>a+b,0)+hero().damageMod+sneak.reduce((a,b)=>a+b,0):0;
- c.enemyHp=Math.max(0,c.enemyHp-dmg);
- clog(`${hero().attackName}: ${p}${q===null?'':` / ${q} (advantage → ${die})`} ${signed(hero().attack)} = ${die+hero().attack} vs AC ${c.enemyAc}. ${hit?`${critical?'Critical hit! ':''}${damageDice.join(' + ')}${hero().damageMod?` ${signed(hero().damageMod)}`:''}${sneak.length?` + Sneak Attack ${sneak.join(' + ')}`:''} = ${dmg} damage.`:'Miss.'}${die===1?' Natural 1 always misses.':''}`);
- c.hidden=false;c.firstAdv=false;
- nextTurn();return;
+  const before=c.enemyHp;
+  const extraAdv=c.firstAdv||c.hidden,p=rand(20),q=extraAdv?rand(20):null,die=q===null?p:Math.max(p,q),critical=die===20,hit=critical||(die!==1&&die+hero().attack>=c.enemyAc);
+  const damageDice=hit?[rand(hero().damageDie)]:[];
+  if(hit&&critical)damageDice.push(rand(hero().damageDie));
+  let sneak=[];
+  if(hit&&s.classId==='rogue'&&c.hidden){sneak=[rand(6)];if(critical)sneak.push(rand(6));}
+  const dmg=hit?damageDice.reduce((a,b)=>a+b,0)+hero().damageMod+sneak.reduce((a,b)=>a+b,0):0;
+  c.enemyHp=Math.max(0,c.enemyHp-dmg);
+  const math=`Attack: ${p}${q===null?'':` / ${q} → ${die} (advantage)`} ${signed(hero().attack)} = ${die+hero().attack} vs AC ${c.enemyAc} · ${hit?'HIT':'MISS'}${hit?` · Damage: ${damageDice.join(' + ')} ${hero().damageMod?signed(hero().damageMod):''}${sneak.length?` + Sneak Attack ${sneak.join(' + ')}`:''} = ${dmg}`:''}`;
+  clog(`${hero().attackName}: ${math}${critical?' CRITICAL HIT!':''}`);
+  c.hidden=false;c.firstAdv=false;c.resultRoundDone=true;
+  combatResult({title:hit?(critical?'Critical hit!':c.enemyHp===0?'The Warden is defeated!':'You hit the Warden!'):'Your attack misses',story:hit?`${hero().attackName} ${s.classId==='wizard'?'erupts against':'strikes'} the stone guardian for ${dmg} damage${critical?' — a devastating critical hit!':'.'}`:'The guardian turns just in time. Your blow glances harmlessly off its armor.',math,type:hit?'damage':'neutral',number:hit?`−${dmg} HP`:'MISS',from:'enemy',before,after:c.enemyHp,next:c.enemyHp===0?'victory':'enemy',teaching:critical?'A natural 20 is a critical hit: roll your damage dice twice.':hit?'Your d20 + attack bonus met or exceeded the Warden’s AC. Roll damage only after a hit.':'Attacks miss when their result is below Armor Class (or the d20 shows a natural 1).'});return;
  }
 }
 function art(stage) { return stage==='tavern'||stage==='tavernHub'||stage==='stranger'||stage==='keeper'||stage==='door'?'tavern':stage==='passage'||stage==='passageChoice'?'passage':'vault'; }
@@ -304,11 +364,16 @@ function renderCheck() {
 function renderOutcome(){const o=s.outcome;if(!o)return '';const r=o.roll;return `<div class="outcome ${o.success===null?'neutral':o.success?'positive':'negative'}"><div class="outcome-line"><span>${o.success===null?'✧':o.success?'✓':'◇'} ${esc(o.title)}</span>${r?`<span class="result-pill">${r.success?'SUCCESS':'FAILURE'} · ${r.total} / ${r.dc}</span>`:''}</div><p>${fmt(o.body)}</p>${r?`<div class="outcome-math">${r.mode!=='normal'?`d20 ${r.die1} / ${r.die2} → ${r.die}`:`d20 ${r.die}`} &nbsp; ${signed(r.modifier)} &nbsp; = <strong>${r.total}</strong> &nbsp; vs DC ${r.dc}</div>`:''}</div>`;}
 function renderCombat() {
  const c=s.combat;if(!c)return '';
- return `<div class="combat-card"><div class="combat-head"><div><span class="small-caps">COMBAT ENCOUNTER</span><h3>Echo Warden <span class="enemy-lvl">AC ${c.enemyAc}</span></h3></div><div class="enemy-symbol">◇</div></div><div class="enemy-bar"><span style="width:${100*c.enemyHp/c.enemyMax}%"></span></div><div class="combat-meta"><span>WARDEN HP <strong>${c.enemyHp} / ${c.enemyMax}</strong></span><span>ROUND <strong>${c.round}</strong></span></div>${c.phase==='initiative'?`<p class="combat-blurb">Before combat begins, everyone rolls <strong>initiative</strong> (a Dexterity check) to decide turn order.</p><button class="primary" data-act="rollInitiative">Roll initiative <span>⚄</span></button>`:`<div class="combat-turn"><span class="your-turn">● YOUR TURN</span><p>You have <strong>one action</strong>. Bonus Actions are separate if you have an ability that uses them.</p><div class="combat-actions"><button class="move-btn" data-act="combat:attack"><span class="move-glyph">⚔</span><span><strong>Attack · ${esc(hero().attackName)}</strong><small>${signed(hero().attack)} to hit · ${s.classId==='wizard'?'1d10 fire':`1d${hero().damageDie} ${signed(hero().damageMod)} damage`}${c.hidden||c.firstAdv?' · advantage':''}</small></span><span class="move-arrow">→</span></button>${s.classId==='wizard'&&s.slots>0?`<button class="move-btn" data-act="combat:missile"><span class="move-glyph">✦</span><span><strong>Magic Missile</strong><small>Auto-hit · 3 × (1d4 + 1) · costs 1 slot</small></span><span class="move-arrow">→</span></button>`:''}${s.classId==='rogue'?`<button class="move-btn" data-act="combat:hide"><span class="move-glyph">↝</span><span><strong>Hide behind the crates</strong><small>Stealth DC 15 · set up advantage</small></span><span class="move-arrow">→</span></button>`:''}<button class="move-btn" data-act="combat:dodge"><span class="move-glyph">◇</span><span><strong>Dodge</strong><small>Warden attacks at disadvantage this round</small></span><span class="move-arrow">→</span></button><button class="move-btn" data-act="combat:flee"><span class="move-glyph">↶</span><span><strong>Disengage and escape</strong><small>Withdraw safely; leave the lantern behind</small></span><span class="move-arrow">→</span></button></div><div class="bonus-actions"><span class="small-caps">BONUS ACTIONS · ${c.bonusUsed?'USED THIS TURN':'OPTIONAL'}</span><div class="bonus-row">${s.potions>0?`<button ${c.bonusUsed||s.hp===maxHp()?'disabled':''} data-act="bonus:potion">⚗ Drink healing potion <small>2d4+2 HP</small></button>`:''}${s.classId==='fighter'&&!c.secondWindUsed?`<button ${c.bonusUsed||s.hp===maxHp()?'disabled':''} data-act="bonus:secondWind">✚ Second Wind <small>1d10+1 HP</small></button>`:''}${s.potions===0&&(s.classId!=='fighter'||c.secondWindUsed)?'<span class="muted">No remaining Bonus Actions available.</span>':''}</div></div></div>`}<div class="combat-log"><div class="small-caps">RECENT DICE & ACTIONS</div>${c.log.slice(0,5).map((t,i)=>`<div class="combat-log-entry ${i===0?'latest':''}">${esc(t)}</div>`).join('')}</div><div class="teaching-inline"><span>✦ COMBAT TUTORIAL</span><p>${c.phase==='initiative'?'Higher initiative acts first. Ties can be resolved by the DM; this demo favors your character.':'An attack is a d20 + your attack bonus against the target’s AC. A natural 1 misses, a natural 20 critically hits. On your turn you may choose to Dodge, flee, or use a class feature instead.'}</p></div></div>`;
+ const heroPercent=clamp(100*s.hp/maxHp(),0,100),enemyPercent=clamp(100*c.enemyHp/c.enemyMax,0,100);
+ const health=(side,label,name,hp,maximum,ac,percentage,meta)=>`<div class="combat-health ${side} ${percentage<=30?'critical':''}"><div class="combat-health-title"><span>${label}</span><strong>${esc(name)}</strong></div><div class="combat-health-numbers"><strong>${hp}<small> / ${maximum} HP</small></strong><span>AC ${ac}</span></div><div class="combat-health-track" role="progressbar" aria-label="${label} hit points" aria-valuemin="0" aria-valuemax="${maximum}" aria-valuenow="${hp}"><span style="width:${percentage}%"></span></div><div class="combat-health-caption">${esc(meta)}</div></div>`;
+ const r=c.result;
+ const result=r?`<div class="combat-result ${esc(r.type)}" role="status" aria-live="polite"><div class="combat-result-tag">✦ &nbsp; ACTION RESOLVED · ROUND ${c.round}</div><div class="combat-result-heading"><h3>${esc(r.title)}</h3><strong class="combat-result-number">${esc(r.number)}</strong></div><p class="combat-result-story">${esc(r.story)}</p>${r.from?`<div class="combat-result-hp">${r.from==='hero'?'YOUR HP':'WARDEN HP'} &nbsp; <b>${r.before}</b> <span>→</span> <strong>${r.after}</strong></div>`:''}${r.math?`<div class="combat-result-math">⚄ &nbsp; ${esc(r.math)}</div>`:''}<div class="combat-result-lesson"><strong>WHY?</strong> ${esc(r.teaching)}</div><button class="primary combat-continue" data-act="combatContinue">${c.next==='victory'?'See what happens next':c.next==='defeat'?'See what happens next':c.next==='enemy'?'Continue → Warden’s response':c.next==='bonus'?'Continue → Choose your action':c.next==='player'?'Continue → Your turn':'Continue → Start combat'} <span>→</span></button><p class="combat-result-hint">Your next action is paused until you continue.</p></div>`:'';
+ return `<div class="combat-card"><div class="combat-phase-line"><span>⚔ &nbsp; BATTLE · ECHO WARDEN</span><strong>ROUND ${c.round}</strong></div><div class="combat-health-grid">${health('hero','YOUR CHARACTER',s.heroName,s.hp,maxHp(),hero().ac,heroPercent,`${hero().name}${c.hidden?' · Hidden':''}${c.dodging?' · Dodging':''}`)}${health('enemy','OPPONENT','Echo Warden',c.enemyHp,c.enemyMax,c.enemyAc,enemyPercent,c.enemyHp===0?'Defeated':c.enemyHp<=3?'Barely standing':'Stone guardian')}</div>${c.phase==='initiative'?`<div class="combat-initiative"><span class="your-turn">✦ INITIATIVE</span><h3>Who moves first?</h3><p>Roll a d20 and add your Dexterity modifier. The Warden will roll too.</p><button class="primary combat-continue" data-act="rollInitiative">Roll initiative <span>⚄</span></button></div>`:c.phase==='result'?result:`<div class="combat-turn"><span class="your-turn">● YOUR TURN</span><p>You have <strong>one main action</strong>. You may use one available Bonus Action first.</p><div class="combat-actions"><button class="move-btn" data-act="combat:attack"><span class="move-glyph">⚔</span><span><strong>Attack · ${esc(hero().attackName)}</strong><small>${signed(hero().attack)} to hit · ${s.classId==='wizard'?'1d10 fire':`1d${hero().damageDie} ${signed(hero().damageMod)} damage`}${c.hidden||c.firstAdv?' · advantage':''}</small></span><span class="move-arrow">→</span></button>${s.classId==='wizard'&&s.slots>0?`<button class="move-btn" data-act="combat:missile"><span class="move-glyph">✦</span><span><strong>Magic Missile</strong><small>Auto-hit · 3 × (1d4 + 1) · costs 1 slot</small></span><span class="move-arrow">→</span></button>`:''}${s.classId==='rogue'?`<button class="move-btn" data-act="combat:hide"><span class="move-glyph">↝</span><span><strong>Hide behind the crates</strong><small>Stealth DC 15 · set up advantage</small></span><span class="move-arrow">→</span></button>`:''}<button class="move-btn" data-act="combat:dodge"><span class="move-glyph">◇</span><span><strong>Dodge</strong><small>Warden attacks at disadvantage this round</small></span><span class="move-arrow">→</span></button><button class="move-btn" data-act="combat:flee"><span class="move-glyph">↶</span><span><strong>Disengage and escape</strong><small>Withdraw safely; leave the lantern behind</small></span><span class="move-arrow">→</span></button></div><div class="bonus-actions"><span class="small-caps">BONUS ACTIONS · ${c.bonusUsed?'USED THIS TURN':'OPTIONAL'}</span><div class="bonus-row">${s.potions>0?`<button ${c.bonusUsed||s.hp===maxHp()?'disabled':''} data-act="bonus:potion">⚗ Drink healing potion <small>2d4+2 HP</small></button>`:''}${s.classId==='fighter'&&!c.secondWindUsed?`<button ${c.bonusUsed||s.hp===maxHp()?'disabled':''} data-act="bonus:secondWind">✚ Second Wind <small>1d10+1 HP</small></button>`:''}${s.potions===0&&(s.classId!=='fighter'||c.secondWindUsed)?'<span class="muted">No remaining Bonus Actions available.</span>':''}</div></div></div>`}<details class="combat-history"><summary>Previous dice rolls & combat events (${c.log.length})</summary><div class="combat-log">${c.log.slice(0,20).map((t,i)=>`<div class="combat-log-entry ${i===0?'latest':''}">${esc(t)}</div>`).join('')}</div></details></div>`;
 }
 function renderScene() {
  const v=scene();const isSpecial=['ending','defeat'].includes(s.stage);
  if(isSpecial)return renderEnding();
+ if(s.stage==='combat')return `<section class="story-screen battle-screen"><div class="chapter-strip"><span>CHAPTER 03</span><div class="chapter-progress"><i class="lit"></i><i class="lit"></i><i class="lit"></i></div><span>THE CHAMBER OF ECHOES</span></div><div class="combat-banner"><span>✦ THE CHAMBER OF ECHOES</span><h2>The Echo Warden awakens</h2><p>Stone grinds against stone. The guardian raises its fists.</p></div><div class="combat-body">${renderCombat()}</div></section>`;
  return `<section class="story-screen"><div class="chapter-strip"><span>CHAPTER ${String(v.chapter).padStart(2,'0')}</span><div class="chapter-progress"><i class="${v.chapter>=1?'lit':''}"></i><i class="${v.chapter>=2?'lit':''}"></i><i class="${v.chapter>=3?'lit':''}"></i></div><span>${v.label}</span></div><div class="story-art"><img src="assets/${art(s.stage)}.svg" alt="${art(s.stage)==='tavern'?'A dim tavern with a cloaked stranger':art(s.stage)==='passage'?'An ancient stone passage':'A blue-glowing underground sanctuary'}"/><span class="art-corner">✧ AN ORIGINAL ADVENTURE</span></div><div class="story-body"><span class="tiny-index">${esc(v.label)}</span><h2>${esc(v.heading)}</h2><div class="prose">${v.text.map(p=>`<p>${fmt(p)}</p>`).join('')}</div>${renderOutcome()}${s.pending?renderCheck():s.stage==='combat'?renderCombat():`<div class="choice-panel"><div class="choice-label"><span>WHAT DO YOU DO?</span><small>There is no wrong way to be curious.</small></div><div class="choice-list">${v.choices.map((c,i)=>`<button class="choice-btn" data-act="${c.key}" ${c.locked?'disabled':''}><span class="choice-icon">${c.icon}</span><span class="choice-description"><strong>${esc(c.title)}</strong><small>${esc(c.detail)}</small></span><span class="choice-chevron">↗</span></button>`).join('')}</div></div><div class="lesson"><div>✦ &nbsp; DM'S NOTE</div><p>${esc(v.lesson)}</p></div>`}</div></section>`;
 }
 function renderEnding(){const won=s.stage==='ending';const escape=s.ending==='escape';const total=s.checks.length;const successes=s.checks.filter(x=>x.success).length;
@@ -321,7 +386,7 @@ function renderModal(){if(!modal)return '';let title,content;
  else if(modal==='journal'){title='Adventure journal';content=`<p class="modal-lead">A record of your choices and dice rolls, kept locally on this device.</p><div class="journal-items">${s.journal.length?s.journal.map(entry=>`<div class="journal-entry ${esc(entry.kind)}"><span>✧</span><p>${esc(entry.text)}</p></div>`).reverse().join(''):'<p class="muted">Your journal will fill as you play.</p>'}</div>`;}
  else if(modal==='settings'){title='Save & settings';content=`<p class="modal-lead">Your progress is saved automatically in this browser. No account or server is involved.</p>${installPanel()}<div class="settings-actions"><button data-act="export">↓ Export save as JSON</button><button data-act="import">↑ Import save from JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden/><button class="danger" data-act="restart">↻ Erase save and start over</button></div><div class="attribution"><strong>Offline play:</strong> After your first successful visit via HTTPS, this app can work offline on supported browsers. Updates are never applied while you are editing or playing without choosing to reload.<br/><br/>Rules adapted from <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">SRD 5.2.1</a> (Wizards of the Coast, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>); original adventure and code. Not an official D&D product.</div>`;}
  return `<div class="modal-backdrop" data-act="closeModalBackdrop"><div role="dialog" aria-modal="true" aria-label="${esc(title)}" class="modal"><div class="modal-heading"><div><span class="small-caps">LANTERN & KEY</span><h2>${esc(title)}</h2></div><button class="icon-btn" data-act="closeModal" aria-label="Close dialog">×</button></div><div class="modal-content">${content}</div></div></div>`;}
-function render(){const playing=s.classId&&s.stage!=='welcome';app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Lantern and Key home"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp">♥ <b>${s.hp}</b> / ${maxHp()} HP</span><button class="nav-button" data-modal="journal">Journal</button>`:''}<button class="nav-button" data-modal="rules">Rules</button><button class="nav-button" data-modal="settings" aria-label="Settings">⚙</button></div></div></header><div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v1.1</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;}
+function render(){const playing=s.classId&&s.stage!=='welcome';app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Lantern and Key home"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp">♥ <b>${s.hp}</b> / ${maxHp()} HP</span><button class="nav-button" data-modal="journal">Journal</button>`:''}<button class="nav-button" data-modal="rules">Rules</button><button class="nav-button" data-modal="settings" aria-label="Settings">⚙</button></div></div></header><div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v1.2</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;}
 function restart(){if(!confirm('Start a new adventure? Your current progress will be replaced. Export a backup first if you want to keep it.'))return;s={version:1,stage:'welcome',flags:{},journal:[],checks:[],heroName:'',classId:null,hp:null,potions:1,slots:0,outcome:null,combat:null,ending:null};modal=null;commit();}
 function exportSave(){const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lantern-and-key-save.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function importSave(file){if(!file)return;try{const obj=JSON.parse(await file.text());if(!obj || obj.version!==1 || !Object.prototype.hasOwnProperty.call(CLASSES,obj.classId) || !TITLES[obj.stage] || !Array.isArray(obj.journal) || !Array.isArray(obj.checks) || !obj.flags || typeof obj.flags!=='object'||!Number.isFinite(obj.hp)||obj.journal.length>1000)throw Error('Not a compatible Lantern & Key v1 save.');if(!confirm('Replace current progress with the imported save?'))return;s={...obj,heroName:String(obj.heroName||'Adventurer').slice(0,28),hp:clamp(obj.hp,0,CLASSES[obj.classId].hp),potions:clamp(Number(obj.potions)||0,0,99),slots:clamp(Number(obj.slots)||0,0,2),journal:obj.journal.slice(-120),pending:obj.pending&&CHECKS[obj.pending.key]?obj.pending:null};modal=null;commit();}catch(e){alert('Import failed: '+e.message);}}
@@ -336,6 +401,7 @@ app.addEventListener('click',event=>{
  else if(action==='home'){if(s.stage==='welcome'){scrollTo({top:0,behavior:'smooth'});}else{modal='settings';render();}}
  else if(action==='rollCheck')rollCheck();
  else if(action==='rollInitiative')rollInitiative();
+ else if(action==='combatContinue')advanceCombat();
  else if(action.startsWith('combat:'))combatAction(action.split(':')[1]);
  else if(action.startsWith('bonus:'))useBonus(action.split(':')[1]);
  else if(action==='restart')restart();
