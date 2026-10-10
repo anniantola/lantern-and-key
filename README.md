@@ -1,6 +1,6 @@
 # Lantern & Key — a beginner tabletop-RPG tutorial
 
-A complete, **single-player, mobile-friendly HTTPS website** that teaches core D&D-compatible mechanics through an original branching fantasy adventure. Version 1.0.
+A complete, **single-player, mobile-friendly HTTPS website** that teaches core D&D-compatible mechanics through an original branching fantasy adventure. Version 1.1.
 
 ## Deploy to GitHub Pages — via GitHub Actions
 
@@ -30,6 +30,12 @@ To test locally, run `python3 -m http.server 8000` in this folder and visit `htt
 ## Deliberate v1 limitations
 
 This is a **guided, curated teaching adventure**, not an AI Dungeon Master, multiplayer service, complete character builder, general tabletop VTT, or official D&D product. The simplified teaching characters do **not** implement every feature or equipment choice in the tabletop rules (e.g., death saves, all skill checks, full spellcasting rules, movement on a tactical grid, rests, experience points, and inventory weight). The adventure makes several DM-like rulings appropriate to its scenes. After a character reaches 0 HP it offers an explicit reset rather than applying death-saving rules. Designed for solo discovery before trying a human-led tabletop session.
+
+## Install on phone / desktop
+
+Open **Settings (⚙) → Install / find installed app**. If the browser makes a PWA installation prompt available, the button will offer **Install Lantern & Key**. Otherwise, the button provides device-specific installation instructions. If the browser reports that Lantern & Key is already installed, launch it from the Android app drawer or the device's Apps settings. There is no web API to force a second installation of the same PWA.
+
+**Important: export a JSON save before uninstalling the app or clearing site data.** Installing, uninstalling and clearing app data are controlled by your browser/operating system, not by the game. This update includes PNG icons for more consistent install support on Android. Note that pressing the Settings install button cannot forcibly reinstall an app that Android already considers installed.
 
 ## Offline and update behavior
 

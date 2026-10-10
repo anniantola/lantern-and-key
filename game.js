@@ -31,6 +31,64 @@ let s = load();
 let modal = null;
 let updateWorker = null;
 let updateRequested = false;
+// The browser only provides an install prompt when installation is currently eligible.
+// It cannot detect whether an app is installed elsewhere on the device or force a reinstall.
+let deferredInstallPrompt = null;
+let installGuideOpen = false;
+let installFeedback = '';
+let installedThisSession = false;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function installGuide() {
+ const agent=navigator.userAgent || '';
+ if (/iPhone|iPad|iPod/i.test(agent)) return 'On iPhone or iPad, open this website in Safari, tap Share, then Add to Home Screen. If you already added it, open it from your Home Screen or App Library.';
+ if (/Android/i.test(agent)) return 'In Chrome, open the ⋮ menu and choose Add to Home screen or Install app. If Android says it is already installed, find Lantern & Key in your app drawer or Settings → Apps. Open the existing app instead of installing another copy.';
+ return 'Use your browser menu and choose Install app or Add to Home screen. If it is already installed, launch the existing app from your applications list.';
+}
+function installPanel() {
+ const installed=isStandalone() || installedThisSession;
+ const label=installed ? '✓ App is installed' : deferredInstallPrompt ? '↧ Install Lantern & Key' : '↧ Install / find installed app';
+ return `<div class="install-panel"><div class="install-heading">PLAY AS AN APP</div><p class="modal-lead">Use Lantern & Key from your home screen, with its own window and offline access after caching.</p><button class="install-action" data-act="installApp" ${installed?'disabled':''}>${label}</button>${installed?'<p class="install-status">You are using the installed app, or you just installed it.</p>':''}${installFeedback?`<p class="install-status" role="status">${esc(installFeedback)}</p>`:''}${(!installed&&(installGuideOpen || !deferredInstallPrompt))?`<div class="install-guide"><strong>How to install or find it</strong><p>${esc(installGuide())}</p><p><strong>Already installed, but missing from your home screen?</strong> Check your app drawer and your phone’s Settings → Apps. Before uninstalling or clearing app data, export your save as JSON below. Removing an installed PWA can delete its local progress.</p></div>`:''}</div>`;
+}
+function requestInstall() {
+ if(isStandalone() || installedThisSession) return;
+ if (!deferredInstallPrompt) {
+  installGuideOpen=!installGuideOpen;
+  installFeedback='Your browser has not offered an install prompt. This can happen when the app is already installed or when installation is not supported in this browser.';
+  render();
+  return;
+ }
+ const prompt=deferredInstallPrompt;
+ deferredInstallPrompt=null; // A browser prompt can be used only once.
+ installFeedback='';
+ try {
+  Promise.resolve(prompt.prompt()).then(()=>prompt.userChoice).then(choice=>{
+   if(choice?.outcome==='accepted') installFeedback='Installation requested. Look for Lantern & Key on your home screen or in the app drawer.';
+   else {installFeedback='Installation was dismissed. You can also use your browser menu to install or open the app.';installGuideOpen=true;}
+   if(modal==='settings')render();
+  }).catch(()=>{
+   installFeedback='The browser could not start installation. Use the steps below instead.';
+   installGuideOpen=true;
+   if(modal==='settings')render();
+  });
+ } catch(e) {
+  installFeedback='The install prompt is unavailable. Use the steps below instead.';
+  installGuideOpen=true;
+  render();
+ }
+}
+window.addEventListener('beforeinstallprompt', event=>{
+ event.preventDefault();
+ deferredInstallPrompt=event;
+ installFeedback='';
+ if(modal==='settings')render();
+});
+window.addEventListener('appinstalled',()=>{
+ installedThisSession=true;
+ deferredInstallPrompt=null;
+ installGuideOpen=false;
+ installFeedback='Lantern & Key has been installed.';
+ if(modal==='settings')render();
+});
 const app = document.querySelector('#app');
 const rand = n => Math.floor(Math.random()*n)+1;
 const signed = n => n>=0 ? '+'+n : String(n);
@@ -261,9 +319,9 @@ function renderModal(){if(!modal)return '';let title,content;
  if(modal==='rules'){title='A pocket rulebook';content=`<p class="modal-lead">The essentials you'll use on this adventure. Tap a topic to expand.</p><div class="glossary">${GLOSSARY.map(([name,text],i)=>`<details ${i===1?'open':''}><summary>${esc(name)}</summary><p>${esc(text)}</p></details>`).join('')}</div><div class="attribution">Based on portions of the <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">System Reference Document 5.2.1</a> by Wizards of the Coast, available under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>. Rules simplified/adapted for teaching. Not affiliated with or endorsed by Wizards of the Coast.</div>`;}
  else if(modal==='sheet'){title='Character sheet';content=renderSheet();}
  else if(modal==='journal'){title='Adventure journal';content=`<p class="modal-lead">A record of your choices and dice rolls, kept locally on this device.</p><div class="journal-items">${s.journal.length?s.journal.map(entry=>`<div class="journal-entry ${esc(entry.kind)}"><span>✧</span><p>${esc(entry.text)}</p></div>`).reverse().join(''):'<p class="muted">Your journal will fill as you play.</p>'}</div>`;}
- else if(modal==='settings'){title='Save & settings';content=`<p class="modal-lead">Your progress is saved automatically in this browser. No account or server is involved.</p><div class="settings-actions"><button data-act="export">↓ Export save as JSON</button><button data-act="import">↑ Import save from JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden/><button class="danger" data-act="restart">↻ Erase save and start over</button></div><div class="attribution"><strong>Offline play:</strong> After your first successful visit via HTTPS, this app can work offline on supported browsers. Updates are never applied while you are editing or playing without choosing to reload.<br/><br/>Rules adapted from <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">SRD 5.2.1</a> (Wizards of the Coast, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>); original adventure and code. Not an official D&D product.</div>`;}
+ else if(modal==='settings'){title='Save & settings';content=`<p class="modal-lead">Your progress is saved automatically in this browser. No account or server is involved.</p>${installPanel()}<div class="settings-actions"><button data-act="export">↓ Export save as JSON</button><button data-act="import">↑ Import save from JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden/><button class="danger" data-act="restart">↻ Erase save and start over</button></div><div class="attribution"><strong>Offline play:</strong> After your first successful visit via HTTPS, this app can work offline on supported browsers. Updates are never applied while you are editing or playing without choosing to reload.<br/><br/>Rules adapted from <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">SRD 5.2.1</a> (Wizards of the Coast, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>); original adventure and code. Not an official D&D product.</div>`;}
  return `<div class="modal-backdrop" data-act="closeModalBackdrop"><div role="dialog" aria-modal="true" aria-label="${esc(title)}" class="modal"><div class="modal-heading"><div><span class="small-caps">LANTERN & KEY</span><h2>${esc(title)}</h2></div><button class="icon-btn" data-act="closeModal" aria-label="Close dialog">×</button></div><div class="modal-content">${content}</div></div></div>`;}
-function render(){const playing=s.classId&&s.stage!=='welcome';app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Lantern and Key home"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp">♥ <b>${s.hp}</b> / ${maxHp()} HP</span><button class="nav-button" data-modal="journal">Journal</button>`:''}<button class="nav-button" data-modal="rules">Rules</button><button class="nav-button" data-modal="settings" aria-label="Settings">⚙</button></div></div></header><div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v1.0</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;}
+function render(){const playing=s.classId&&s.stage!=='welcome';app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Lantern and Key home"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp">♥ <b>${s.hp}</b> / ${maxHp()} HP</span><button class="nav-button" data-modal="journal">Journal</button>`:''}<button class="nav-button" data-modal="rules">Rules</button><button class="nav-button" data-modal="settings" aria-label="Settings">⚙</button></div></div></header><div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v1.1</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;}
 function restart(){if(!confirm('Start a new adventure? Your current progress will be replaced. Export a backup first if you want to keep it.'))return;s={version:1,stage:'welcome',flags:{},journal:[],checks:[],heroName:'',classId:null,hp:null,potions:1,slots:0,outcome:null,combat:null,ending:null};modal=null;commit();}
 function exportSave(){const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lantern-and-key-save.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function importSave(file){if(!file)return;try{const obj=JSON.parse(await file.text());if(!obj || obj.version!==1 || !Object.prototype.hasOwnProperty.call(CLASSES,obj.classId) || !TITLES[obj.stage] || !Array.isArray(obj.journal) || !Array.isArray(obj.checks) || !obj.flags || typeof obj.flags!=='object'||!Number.isFinite(obj.hp)||obj.journal.length>1000)throw Error('Not a compatible Lantern & Key v1 save.');if(!confirm('Replace current progress with the imported save?'))return;s={...obj,heroName:String(obj.heroName||'Adventurer').slice(0,28),hp:clamp(obj.hp,0,CLASSES[obj.classId].hp),potions:clamp(Number(obj.potions)||0,0,99),slots:clamp(Number(obj.slots)||0,0,2),journal:obj.journal.slice(-120),pending:obj.pending&&CHECKS[obj.pending.key]?obj.pending:null};modal=null;commit();}catch(e){alert('Import failed: '+e.message);}}
@@ -281,6 +339,7 @@ app.addEventListener('click',event=>{
  else if(action.startsWith('combat:'))combatAction(action.split(':')[1]);
  else if(action.startsWith('bonus:'))useBonus(action.split(':')[1]);
  else if(action==='restart')restart();
+ else if(action==='installApp')requestInstall();
  else if(action==='export')exportSave();
  else if(action==='import')document.querySelector('#importFile')?.click();
  else if(action==='applyUpdate'&&updateWorker){persist();updateRequested=true;updateWorker.postMessage({type:'SKIP_WAITING'});}
