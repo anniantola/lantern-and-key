@@ -150,7 +150,12 @@ function go(stage,clear=true) {
  s.stage=stage;
  if(clear) s.outcome=null;
  // Moving to another character/location is an action, even without a die roll.
- outcome('You follow the next lead',`You make your way toward ${TITLES[stage].toLowerCase()}. What you find there remains to be seen.`);
+ const leads={
+  stranger:'You cross the tavern to the traveler’s table. Around you, conversations falter and resume; the stranger is studying a faded map of the road that disappears into Blackwood.',
+  keeper:'Mira waits until you are near the counter before she sets aside her cup. You can see the strain of someone guarding a secret that has ceased to feel safe.',
+  door:'The cellar door stands just beyond the counter. Its three-eyed wolf emblem matches the road markings on the traveler’s old map.'
+ };
+ outcome('You follow the next lead',leads[stage]||`You make your way toward ${TITLES[stage].toLowerCase()}.`);
  commit();
 }
 function begin() {
@@ -266,8 +271,8 @@ function finish(which,roll=null){
  s.lanternSparks=which==='take'?3:0;
  if(which==='take'){learn('inventory');learn('artifact');}
  if(which==='restore'){title='The lantern shines again';desc=s.flags.repairedWithoutKey?'You carefully align the mechanism by hand, in place of the missing silver key. Blue light floods the chamber. The guardian bows as warmth returns to the forgotten vault.':'You place the silver key in the lantern’s socket. Blue light floods the chamber. The guardian bows as warmth returns to the forgotten vault.';}
- else if(which==='take'){title='A dangerous souvenir';desc='You lift the enchanted lantern and wrap it carefully in your cloak. Its fading glow follows you into the night. The mystery is far from over.';}
- else{title='A promise kept';desc='You return upstairs and entrust the lantern to the hooded traveler. They take it with trembling hands. “You have given us a chance,” they whisper.';}
+ else if(which==='take'){title='A dangerous souvenir';desc='You lift the enchanted lantern and wrap it carefully in your cloak. Its fading glow follows you into the night. The Warden watches without moving. For the first time, you wonder how many other roads depend on lights like this one—and whether taking it makes you their keeper, or merely their newest traveler.';}
+ else{title='A promise kept';desc='You return upstairs and entrust the lantern to the hooded traveler. They take it with trembling hands. “You have given us a chance,” they whisper. Mira clears a space near the hearth while the traveler spreads an old road map across the table. Caring for one flame will require many more hands.';}
  outcome(title,desc,roll?true:null,roll);record(`Adventure completed: ${which}.`);commit();}
 function setupCombat(intro,roll=null) {
  s.stage='combat';s.pending=null;
@@ -416,7 +421,7 @@ function scene() {
  }
 }
 function renderWelcome() {
- return `<div class="welcome"><div class="welcome-hero"><div class="welcome-overlay"><div class="eyebrow">AN INTERACTIVE BEGINNER ADVENTURE <span class="dot"></span> VERSION 2.4.1</div><div class="ornament">✧ &nbsp; ◇ &nbsp; ✧</div><h1>Lantern <em>&</em> Key</h1><p class="welcome-subtitle">Your first steps into a world of dice, decisions, and dangerous doors.</p><div class="intro-tags"><span>◈ Solo adventure</span><span>♧ Learn as you play</span><span>◷ Eight chapters</span></div></div></div>
+ return `<div class="welcome"><div class="welcome-hero"><div class="welcome-overlay"><div class="eyebrow">AN INTERACTIVE BEGINNER ADVENTURE <span class="dot"></span> VERSION 2.5.0</div><div class="ornament">✧ &nbsp; ◇ &nbsp; ✧</div><h1>Lantern <em>&</em> Key</h1><p class="welcome-subtitle">Your first steps into a world of dice, decisions, and dangerous doors.</p><div class="intro-tags"><span>◈ Solo adventure</span><span>♧ Learn as you play</span><span>◷ Eight chapters</span></div></div></div>
  <div class="welcome-content"><div class="section-top"><span class="tiny-index">01 / THE HERO</span><h2>Who walks into the tavern?</h2><p>Start with a ready-to-play level 1 character. The mechanics are simplified to teach the essentials without a long setup.</p></div>
  <div class="class-grid">${Object.entries(CLASSES).map(([id,c],i)=>`<label class="class-card"><input type="radio" name="classChoice" value="${id}" ${i===0?'checked':''}/><div class="class-inner"><span class="class-icon">${c.icon}</span><span class="class-name">${c.name}</span><span class="class-tag">${c.tag}</span><span class="class-desc">${c.description}</span><span class="class-stats">${c.hp} HP <span>·</span> ${c.ac} AC</span><span class="class-select">Choose ${c.name} <span aria-hidden="true">↗</span></span></div></label>`).join('')}</div>
  <div class="name-row"><label for="heroName">CHARACTER NAME <span>(optional)</span></label><input id="heroName" maxlength="28" autocomplete="off" placeholder="Choose a name or use the default"/></div>
@@ -464,6 +469,167 @@ function renderStoryResult() {
   </div>
  </section>`;
 }
+// Long-form narrative is presentation-only: it observes established flags and never
+// changes choices, dice outcomes, resources, or save structure. Old saves gain it too.
+function narrativeDetail(stage) {
+ const f=s.flags||{}, kept=carriesLantern();
+ const details={
+  tavern:[
+   'The Forgotten Tavern stands where the old watchroad once met the merchant road. In better years, wayfarers followed blue lamps through Blackwood; these days the lamps have gone dark one by one. Even the locals disagree about who kept them burning.',
+   'Behind the counter, Mira watches the storm with the distracted patience of someone waiting for a visitor who is already late. Each time the wind rattles the cellar door, her hand moves toward a ring of keys she no longer wears.'
+  ],
+  tavernHub:[
+   f.sawKey?'The traveler keeps one hand closed around the wolf-shaped key; they have noticed your interest but have not yet asked you to leave.':'The stranger folds a rain-damp map with the practiced care of someone trying to keep a journey secret.',
+   'Mira sets a fresh candle by the cellar door. Its flame turns blue for half a heartbeat, then ordinary gold. The tavern conversations continue, but nobody seems eager to explain what you saw.'
+  ],
+  stranger:[
+   'On the table lies a weathered map. Its road markings do not match any modern milestone: tiny circles connect the tavern, a bridge, a village, and a final point high among the mountains.',
+   f.key?'The traveler is relieved that you now carry the key, though they remind you that a key opens a door; it does not decide what you should do beyond it.':'“My family once answered the watchlights,” the traveler says quietly. “Now people remember the stories but not the work. I came because the last light below this tavern is weakening.”'
+  ],
+  keeper:[
+   'Mira explains that the cellar was here before her grandmother inherited the inn. In the old days, every keeper on the road had a duty: leave bread for travelers, shelter those caught by the weather, and report when a blue waylight dimmed.',
+   '“No one delivers those reports anymore,” she adds. “The road grew quiet, the posts were abandoned, and everyone assumed someone else would keep watch.”'
+  ],
+  door:[
+   'The wolf bears three eyes, one turned toward the road, one toward the house, and one toward the dark beneath the earth. Under the handle, generations of nervous thumbs have polished the oak smooth.',
+   f.alerted?'Something heavy scrapes far below. The noise you made has not gone unanswered.':'When you bring your ear close, you hear the slow, steady ticking of a machine rather than a voice. Whatever waits inside has endured longer than the tavern above it.'
+  ],
+  passage:[
+   'The steps were built for people carrying supplies, not treasure: there are shallow grooves where wooden crates were dragged down, and tiny blue tiles set at regular intervals to guide a lantern bearer.',
+   'One cracked tablet names the road beyond the tavern and warns that a light left unattended is a danger to everyone who trusts it. The last words have been worn away by water.'
+  ],
+  passageChoice:[
+   f.trapSeen?'Beside the mechanism you notice a maker’s inscription: these stones were intended to close the passage during an emergency, not hunt careless travelers. The old safeguard has become a hazard without anyone to maintain it.':'The carved blocks above the corridor appear to be part of an old security system. A cautious traveler would want to know who was meant to be kept out—and why no one now tends the machinery.',
+   f.triggeredTrap?'Dust falls in thick sheets as the ancient counterweight tears free. For a moment you understand why Mira was so reluctant to open this door.':'From beyond the corridor comes a sound like a distant bell under water. Each pulse grows weaker.'
+  ],
+  vault:[
+   'An inscription circles the floor: **A light is a promise between the watcher and the traveler.** Beneath the words are the shapes of a bridge, a mill wheel, and a mountain ridge. This chamber once belonged to a much larger chain of waystations.',
+   f.peaceful?'The guardian lowers its arms, but it does not look at ease.':'The Warden watches your hands, not your weapon. It was made to distinguish care from theft, though age and long silence may have made its judgment less certain.'
+  ],
+  vaultAlert:[
+   'The great chamber rings with the guardian’s footfalls. Each movement sends dust drifting from centuries-old mosaics of travelers finding their way by a line of blue lights.',
+   'There is still space between you and the Warden. Whatever you do next will be understood as a choice, not a misunderstanding.'
+  ],
+  reveal:[
+   'A narrow brass ring around the lantern holds several empty sockets. Beneath the pedestal you find old maintenance records: one keeper repaired the flame, another carried news to the next watch, and a third brought supplies from the village. The light depended on more than magic.',
+   'Beyond this chamber lie roads whose travelers have forgotten the bargain. You cannot settle every part of that history tonight, but the decision you make here will travel with you into Blackwood.'
+  ],
+  forest:[
+   'The old watchroad crosses a landscape that once depended on the blue waylights. At intervals, iron brackets protrude from the trees, empty now except for moss. Travelers must choose between an uncertain path through the woods and a broken bridge farther east.',
+   kept?'The lantern answers the empty brackets with a trembling reflection. Carrying it feels less like owning a prize and more like becoming the person who must decide where its light is needed.':s.ending==='restore'?'Behind you, the tavern’s restored light holds steady. Ahead, the forest still has other neglected waystations; mending one did not mend the whole road.':s.ending==='return'?'The traveler remained to tend the light, trusting you to find out why the road beyond the tavern has been forgotten.':'You left the underground light in the hands of its guardian. Ahead, the problem of the abandoned road remains unsolved.'
+  ],
+  camp:[
+   'Someone placed the standing stones to form a windbreak beside the road, and someone else later carved a small wolf into the tallest one. The carving points travelers toward the bridge. This was once a safe stopping place, maintained by people who expected strangers to arrive.',
+   f.lanternWard?'A thin boundary of blue light now rests between the stones. You can see the forest moving beyond it, but the small circle feels held apart from the danger.':f.relocatedCamp?'From the new ledge you can see why the old camp was exposed: animal trails converge below, where the ruined waylight no longer marks safe ground.':'The stones are cold and the surrounding soil is soft with recent rain. Wolves are not monsters in a storybook; they are simply hungry creatures with a reason to avoid or enter a camp.'
+  ],
+  trail:[
+   'Broken glass crunches beneath the moss. The pieces are the same pale blue as the lantern chamber’s tiles, and a few still cling to a rusted post. For a hundred paces the path is obvious, then it vanishes under thorn and rain.',
+   f.trailSafe===true?'The safer route you spotted runs beside old drainage ditches. Whoever designed the road knew how quickly these hills could flood.':f.trailSafe===false?'Your detour brings you around a stretch of washed-out paving. The lost time makes the crossing ahead feel more urgent.':'The marks left by earlier travelers make the route possible, if not comfortable. Someone is still using this forgotten road.'
+  ],
+  crossing:[
+   'The guard wears the faded blue thread once used by watchroad couriers. Their left sleeve is tied around a bandaged arm, and a cracked grain seal hangs from the bridge rail. They are protecting the crossing with equipment that has seen too many winters.',
+   '“My village sent us stores,” the sentry says without lowering the crossbow. “Nothing came. Then wagons stopped. If I leave this bridge unguarded, whoever takes the road will have nobody to warn them.” Their anger sounds as much like fear as a threat.'
+  ],
+  crossingAfter:[
+   'The torn banner is not merely a village emblem: it marked the deliveries that once supplied the bridge watch. Under its frayed edge you find a stamped tally for grain and lamp oil. Someone was still keeping this post going long after the waylights failed.',
+   f.lanternBridge?'The sentry keeps looking back at the blue glow, not with greed but recognition. “If that old light answers you,” they say, “find out who stopped answering us.”':f.bridgeFought?'The struggle is over, but the sentry’s fear was real. You leave knowing that winning a passage does not answer why anyone felt they had to fight for it.':'You are allowed to leave, though the question of the missing deliveries follows you down the road.'
+  ],
+  village:[
+   'Every painted shutter in Briar Hollow carries the same three-eyed wolf you saw beneath the tavern. The villagers once traded flour, lamp oil, and repairs for the watchroad’s protection. Now the watch posts are short of supplies and the town is arguing over whose accounts to believe.',
+   'A mill wheel turns slowly beside the river. At the market, sacks are stacked where full stalls used to stand. The shortage has changed more than the harvest feast: people are beginning to suspect neighbors they have known all their lives.'
+  ],
+  market:[
+   'The merchant’s counter holds lists of rope, grain, oil, and blue glass for the old road lamps. Some deliveries are years out of date; others were entered only last week. The watchroad may be forgotten, but its supplies are still being counted.',
+   f.marketTruth?'You know one total was altered. The difficult question is who benefits from the altered figures, and what you can prove before the council meets.':'The merchant folds their hands over the newest page whenever a villager passes. Their worry might be guilt, or it might be fear of being blamed.'
+  ],
+  witness:[
+   'The watermill shakes with every turn of the wheel. Flour dust coats a narrow desk beneath a window, where a second ledger lists sacks meant for the bridge watch and oil meant for the road lamps.',
+   f.millerTrust?'The worker now knows you have listened without promising an easy answer. They might be willing to stand by what they told you when the council calls.':'The worker looks from the ledger to the door before speaking. Testifying here could cost them work, shelter, and the protection of their neighbors.'
+  ],
+  council:[
+   'The benches are crowded with mill workers, traders, and families whose stores have dwindled. No one cheers your arrival. They have heard enough confident explanations that did not put grain back in the storehouse.',
+   'Across the table sits the village treasurer, flanked by those who keep the supply books. The bridge watch has sent no representative; its post is too far away to leave unattended. Your task is to make the people in this room see how their choices reach beyond the walls.'
+  ],
+  trial:[
+   'The school stands on a hill beyond Briar Hollow, built into an older watchtower. Elowen teaches the few students who still study the wards that powered the waylights. The village can debate supplies; she has spent years trying to understand why the beacon system itself has weakened.',
+   '“A promise needs people, but it also needs knowledge,” Elowen says as she leads you through a courtyard of broken blue glass. “If you intend to climb to the mountain beacon, you should know what its magic can and cannot do.”'
+  ],
+  archive:[
+   'The archive is full of ordinary things among the magical volumes: bridge repair invoices, travelers’ petitions, inventories of oil, and letters between keepers. The oldest books do not describe the lights as gifts from a king. They describe a network that survived because someone was always willing to do the next necessary task.',
+   kept?'Elowen notices the lantern in your pack and pauses. “The light knows the old school,” she says. “That does not mean it belongs to us. We can learn from it without deciding its fate for you.”':'Elowen traces a diagram of a lantern-shaped ward. Even without the original artifact, you can learn why some spells protect a place and others protect a person.'
+  ],
+  altar:[
+   'This room was once used to train the road’s keepers. The practice target is shaped like a cracked beacon lens, and faded chalk marks show where generations of students stood to try the same exercises.',
+   'Elowen does not ask you to memorize a list of incantations. Instead she asks what a spell demands of the caster, what it demands of the target, and what happens when the caster is hurt. The distinction matters when real people depend on magic.'
+  ],
+  ascent:[
+   'Beyond the school, the watchroad narrows to a stair cut directly into the mountain. Small niches mark places where signal lamps once carried messages down the valley. The blue flame from the tavern was only one part of a system reaching far beyond the woods.',
+   s.flags.villageSolved?'Below, Briar Hollow has begun repairing the damage to its supply route. The people have work ahead of them, but they are no longer waiting for an outsider to do all of it.':'Below, the question of the village supplies remains unsettled. You can still carry what you learned forward; not every human problem yields to one successful roll.'
+  ],
+  levelup:[
+   'The final climb requires you to use what the road has already taught: recognize a danger, choose your approach, and decide when to spend what strength you have left. You are not stronger because a mysterious voice declared you worthy; you have changed through what you chose to do.',
+   'High above the clouds, the last watchtower shines faintly against the stone. Its door bears the three-eyed wolf, worn nearly smooth by weather.'
+  ],
+  beaconTest:[
+   'The echo resembles the figures carved at every waystation: neither a soldier nor a king, but a cloaked traveler carrying a light for those behind them. It waits at the threshold where the old road meets the final beacon.',
+   '“You have crossed stone, heard witnesses, and studied the flame,” it says. “Strength matters. So does restraint. Show me which of those lessons you will carry onward.”'
+  ],
+  lanternOath:[
+   'Beyond the threshold is a room open to the sky. From here you can see the tavern, the broken crossing, Briar Hollow, and Elowen’s school reduced to points along one winding road. The same wolf sigil marks the beacon’s heart.',
+   kept?'The lantern hums in answer. You remember every time you chose to spend a spark, and every time you kept one in reserve. Nobody here can make that decision on your behalf.':'There is no lantern in your hands. Still, the road has shown you that protecting something need not mean possessing it. The people living beneath the beacons will have to decide what they owe one another.'
+  ],
+  epilogue:[
+   'Morning reaches the watchroad from the mountain down. Smoke rises from the tavern chimney; the bridge appears as a fine dark thread; roofs in Briar Hollow catch the first gold light. The road is not suddenly perfect, but it is once again a place where people can imagine traveling.',
+   s.flags.villageSolved?'You know that the people of Briar Hollow will remember both the evidence you brought and the work they still owe their neighbors.':'You know that unanswered questions remain in Briar Hollow. Helping a place does not require pretending that every dispute was resolved before you left.'
+  ]
+ };
+ return (details[stage]||[]).filter(Boolean);
+}
+
+// Travel interludes are appended to the action-result card, never shown before Continue.
+function storyBridge(from,to){
+ const beats={
+  'ending>forest':'At the inn door Mira hands you a weather-worn map of the old watchroad. Its ink follows the blue-light stations toward a ruined crossing, the village of Briar Hollow, and a watchtower somewhere above the clouds. “The lamp below was not the only one,” she says. “You should know what the others have been living without.”',
+  'forest>camp':'You follow the wolf-marked stones away from the main road. Dusk gathers under the branches, and an abandoned ring of standing stones offers the first shelter you have seen for miles.',
+  'camp>trail':'At daybreak the forest changes color from black to deep green. Past the standing stones the road is less a trail than a memory, marked by broken brackets where blue lamps once burned.',
+  'trail>crossing':'The sound of running water rises long before the bridge comes into view. Old courier signs warn travelers to keep their footing and announce themselves to the watch; the stones ahead are cracked and the watch is desperate.',
+  'crossingAfter>village':'The banner on the far bank bears a grain tally for the bridge post. You follow its stamped village mark through the fields, hoping someone in Briar Hollow can explain why food meant for the watch never arrived.',
+  'village>market':'A child points you toward the merchant’s stall, then asks whether the bridge watch still has anything to eat. The question stays with you as you reach the market.',
+  'village>witness':'The mill stands a short walk along the river. Workers avert their eyes when you ask about the missing shipment, but one points silently toward the waterwheel.',
+  'market>witness':'The figures in the ledger cannot both be true. The miller’s account might confirm a theft—or reveal an innocent error with far-reaching consequences.',
+  'witness>market':'You leave the watermill with the smell of damp flour in your clothes. If the two books tell different stories, comparing them may be more useful than accusing either witness.',
+  'village>council':'The hall bell rings before dusk. Arguments spill out through the open door; people have come because their families and the distant bridge watch both need an answer.',
+  'market>council':'You close the ledger and head toward the village hall. You may have clues, but the people waiting there will want to know what they actually mean.',
+  'witness>council':'The river sounds behind you as you approach the crowded hall. Whatever the miller shared with you, the council must still be persuaded to take responsibility.',
+  'trial>archive':'Elowen leads you down a winding stair into a library that holds the practical history of the waylights beside its spellbooks. Here, magic was never separate from the people who tended it.',
+  'trial>altar':'The training circle is carved into the stone of an earlier watchtower. Its lines were designed to teach careful use of magic, not display raw power.',
+  'archive>altar':'You carry the questions raised by the archives into the demonstration circle: when is power useful, and who bears the cost when it is misused?',
+  'altar>ascent':'Elowen presses a hand against the old blue-glass map by the school gate. A thread of light marks the mountain road. “Everything you have learned is preparation for the choices ahead,” she says. You start climbing.',
+  'ascent>levelup':'With every turning of the trail you find yourself measuring danger differently. You notice where you could have spent less, asked more, or chosen another path. The climb itself becomes a measure of what you have learned.',
+  'levelup>beaconTest':'Above the final bend, a pale figure waits against the beacon’s extinguished glass. It is not another thief or guard; this challenge asks you to demonstrate judgment as well as technique.',
+  'lanternOath>epilogue':'The last light reaches outward across the valley. It does not rebuild the bridge or refill a granary by magic. Instead it gives the people below a signal they can answer, with work and trust of their own.'
+ };
+ return beats[from+'>'+to]||'';
+}
+function narrativeText(stage,original){
+ if(!original?.length)return original||[];
+ return [original[0],...narrativeDetail(stage),...original.slice(1)].filter(Boolean);
+}
+const WORLD_NOTES=[
+ [1,'The three-eyed wolf','The sign marks the old watchroad. Its three eyes stand over road, hearth, and darkness; it appears on waystations rather than on a noble family’s banner.'],
+ [2,'Why the cellar has a corridor','The passages below the tavern were built as part of a working waystation. Worn crate tracks, blue tiles, and failing safety mechanisms show that the place once needed regular maintenance.'],
+ [3,'The chain of waylights','The lantern in the vault belonged to a network of signals, supply stops, and safe crossings. Light alone could not protect a traveler; keepers, roads, and supplies were part of the promise.'],
+ [4,'Blackwood’s standing stones','The campsites were maintained for travelers following the watchroad. Even shelter is an inherited piece of infrastructure, and an abandoned site can be dangerous.'],
+ [5,'The bridge watch','Couriers and sentries once received village deliveries of grain, oil, and repair materials. The broken crossing reflects both physical damage and a breakdown in trust.'],
+ [6,'Briar Hollow’s accounts','The village’s supply records connect daily life to the watchroad. Disputes over deliveries affect real people, even when no monster is responsible.'],
+ [7,'Elowen’s school','The school preserves both ward magic and practical records of the waylight keepers. It teaches restraint, maintenance, and the responsibilities that come with power.'],
+ [8,'The mountain watchtower','The highest beacon overlooks the same roads and settlements you traveled through. What happens here matters because many people must live with its consequences.']
+];
+function renderWorldNotes(){
+ const reached=Math.max(1,Math.min(8,s.unlocked||1));
+ return `<section class="world-notes"><h3>✧ Field notes from the watchroad</h3><p class="muted">Lore discovered by reaching each part of the adventure. These notes never reveal later chapters.</p>${WORLD_NOTES.filter(([number])=>number<=reached).map(([number,title,body])=>`<details><summary><small>CHAPTER ${String(number).padStart(2,'0')}</small> ${esc(title)}</summary><p>${esc(body)}</p></details>`).join('')}</section>`;
+}
+
 function renderScene() {
  if(s.mindOffer)return renderMindOffer();
  if(s.storyResult)return renderStoryResult();
@@ -473,7 +639,7 @@ function renderScene() {
  const v=scene();const isSpecial=['ending','defeat'].includes(s.stage);
  if(isSpecial)return renderEnding();
  if(s.stage==='combat')return `<section class="story-screen battle-screen"><div class="chapter-strip"><span>CHAPTER 03</span><div class="chapter-progress"><i class="lit"></i><i class="lit"></i><i class="lit"></i></div><span>THE CHAMBER OF ECHOES</span></div><div class="combat-banner"><span>✦ THE CHAMBER OF ECHOES</span><h2>The Echo Warden awakens</h2><p>Stone grinds against stone. The guardian raises its fists.</p></div><div class="combat-body">${renderCombat()}</div></section>`;
- return `<section class="story-screen"><div class="chapter-strip"><span>CHAPTER ${String(v.chapter).padStart(2,'0')}</span><div class="chapter-progress">${chapterTicks(s.stage)}</div><span>${v.label}</span></div><div class="story-art"><img src="assets/${art(s.stage)}.svg" alt="${({tavern:'A candlelit tavern with a mysterious traveler',passage:'An ancient stone passage',vault:'A blue-glowing underground sanctuary',forest:'A campfire in a moonlit forest',crossing:'An old ruined stone bridge',village:'A lively medieval village market',arcane:'An enchanted library with arcane glyphs',summit:'Adventurers overlooking distant mountains'})[art(s.stage)]||'Fantasy adventure scene'}"/><span class="art-corner">✧ AN ORIGINAL ADVENTURE</span></div><div class="story-body"><span class="tiny-index">${esc(v.label)}</span><h2>${esc(v.heading)}</h2><div class="prose">${v.text.map(p=>`<p>${fmt(p)}</p>`).join('')}</div>${renderOutcome()}${s.pending?renderCheck():s.stage==='combat'?renderCombat():`<div class="choice-panel"><div class="choice-label"><span>WHAT DO YOU DO?</span><small>There is no wrong way to be curious.</small></div><div class="choice-list">${v.choices.filter(availableStoryChoice).map((c,i)=>`<button class="choice-btn" data-act="${c.key}" ${c.locked?'disabled':''}><span class="choice-icon">${c.icon}</span><span class="choice-description"><strong>${esc(c.title)}</strong><small>${s.mode==='tabletop'?esc(c.detail.replace(/ · (?:[^·]*?(?:DC|check|advantage|saving throw)[^·]*)/gi,'').replace(/DC \d+/g,'').trim()):esc(c.detail)}</small></span><span class="choice-chevron">↗</span></button>`).join('')}</div></div>${s.mode==='guided'?`<div class="lesson"><div>✦ &nbsp; DM'S NOTE</div><p>${esc(v.lesson||'Your decisions can change the outcome.')}</p></div>`:''}`}</div></section>`;
+ return `<section class="story-screen"><div class="chapter-strip"><span>CHAPTER ${String(v.chapter).padStart(2,'0')}</span><div class="chapter-progress">${chapterTicks(s.stage)}</div><span>${v.label}</span></div><div class="story-art"><img src="assets/${art(s.stage)}.svg" alt="${({tavern:'A candlelit tavern with a mysterious traveler',passage:'An ancient stone passage',vault:'A blue-glowing underground sanctuary',forest:'A campfire in a moonlit forest',crossing:'An old ruined stone bridge',village:'A lively medieval village market',arcane:'An enchanted library with arcane glyphs',summit:'Adventurers overlooking distant mountains'})[art(s.stage)]||'Fantasy adventure scene'}"/><span class="art-corner">✧ AN ORIGINAL ADVENTURE</span></div><div class="story-body"><span class="tiny-index">${esc(v.label)}</span><h2>${esc(v.heading)}</h2><div class="prose">${narrativeText(s.stage,v.text).map(p=>`<p>${fmt(p)}</p>`).join('')}</div>${renderOutcome()}${s.pending?renderCheck():s.stage==='combat'?renderCombat():`<div class="choice-panel"><div class="choice-label"><span>WHAT DO YOU DO?</span><small>There is no wrong way to be curious.</small></div><div class="choice-list">${v.choices.filter(availableStoryChoice).map((c,i)=>`<button class="choice-btn" data-act="${c.key}" ${c.locked?'disabled':''}><span class="choice-icon">${c.icon}</span><span class="choice-description"><strong>${esc(c.title)}</strong><small>${s.mode==='tabletop'?esc(c.detail.replace(/ · (?:[^·]*?(?:DC|check|advantage|saving throw)[^·]*)/gi,'').replace(/DC \d+/g,'').trim()):esc(c.detail)}</small></span><span class="choice-chevron">↗</span></button>`).join('')}</div></div>${s.mode==='guided'?`<div class="lesson"><div>✦ &nbsp; DM'S NOTE</div><p>${esc(v.lesson||'Your decisions can change the outcome.')}</p></div>`:''}`}</div></section>`;
 }
 function renderEnding(){const won=s.stage==='ending';const escape=s.ending==='escape';const total=s.checks.length;const successes=s.checks.filter(x=>x.success).length;
  return `<div class="end-screen"><div class="end-art"><img src="assets/vault.svg" alt="A mystical vault with a glowing lantern"/><div class="end-seal">${won&&!escape?'✦':'◇'}</div></div><div class="end-content"><span class="tiny-index">${won?'ADVENTURE COMPLETE':'CHECKPOINT REACHED'}</span><h2>${won?'Your story is just beginning':'Every hero has setbacks'}</h2>${renderOutcome()}<p class="end-main">${won?(escape?'You learned that a retreat is a meaningful choice too. There will be other adventures.':'The tavern slowly returns to silence, but you leave knowing that your choices changed the world, even in a small way.'):'You can safely try the final encounter again. D&D is not about perfection; it is about discovering a story together.'}</p><div class="end-stats"><div><strong>${total}</strong><span>CHECKS MADE</span></div><div><strong>${successes}</strong><span>CHECKS PASSED</span></div><div><strong>${s.journal.filter(x=>x.kind==='combat').length}</strong><span>COMBAT EVENTS</span></div></div>${won?`<div class="next-chapter"><span>✧ &nbsp; WHAT YOU LEARNED</span><p>Exploration, skill checks, difficulty classes, roleplaying, ${s.flags.trapPassed?'saving throws, ':''}${s.flags.victory?'combat, ':''}and how different choices lead to different outcomes.</p></div>`:''}<div class="end-buttons">${!won?`<button class="primary" data-act="retryFight">${s.flags.defeatSource==='trap'?'Retry from the corridor':'Retry encounter with a hint'} <span>↻</span></button>`:''}${won?`<button class="primary" data-act="enterForest">Continue to Chapter 4 — Blackwood <span>→</span></button>`:''}<button class="${won?'secondary':'secondary'}" data-act="restart">Start a new adventure <span>→</span></button><button class="secondary" data-modal="journal">Read your adventure journal</button></div></div></div>`;
@@ -490,7 +656,7 @@ function renderSheet(){
 function renderModal(){if(!modal)return '';let title,content;
  if(modal==='rules'){title='A pocket rulebook';content=`<p class="modal-lead">The essentials you'll use on this adventure. Tap a topic to expand.</p><div class="glossary">${GLOSSARY.map(([name,text],i)=>`<details ${i===1?'open':''}><summary>${esc(name)}</summary><p>${esc(text)}</p></details>`).join('')}</div><div class="attribution">Based on portions of the <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">System Reference Document 5.2.1</a> by Wizards of the Coast, available under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>. Rules simplified/adapted for teaching. Not affiliated with or endorsed by Wizards of the Coast.</div>`;}
  else if(modal==='sheet'){title='Character sheet';content=renderSheet();}
- else if(modal==='journal'){title='Adventure journal';content=`<p class="modal-lead">A record of your choices and dice rolls, kept locally on this device.</p><div class="journal-items">${s.journal.length?s.journal.map(entry=>`<div class="journal-entry ${esc(entry.kind)}"><span>✧</span><p>${esc(entry.text)}</p></div>`).reverse().join(''):'<p class="muted">Your journal will fill as you play.</p>'}</div>`;}
+ else if(modal==='journal'){title='Adventure journal';content=`<p class="modal-lead">A record of your choices, dice rolls, and discovered history, kept locally on this device.</p>${renderWorldNotes()}<div class="journal-items">${s.journal.length?s.journal.map(entry=>`<div class="journal-entry ${esc(entry.kind)}"><span>✧</span><p>${esc(entry.text)}</p></div>`).reverse().join(''):'<p class="muted">Your journal will fill as you play.</p>'}</div>`;}
  else if(modal==='chapters'){title='Chapter checkpoints';content=renderChapters();}
  else if(modal==='learn'){title='Learning journal';content=renderLearning();}
  else if(modal==='inventory'){title='Equipment & inventory';content=renderInventory();}
@@ -508,7 +674,7 @@ function renderAdventureNav(){
 }
 function render(){
  const playing=Boolean(s.classId&&s.stage!=='welcome');
- app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v2.4.2</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
+ app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v2.5.0</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
 }
 function restart(){if(s.replay){if(!confirm('Discard this replay and return to your original campaign?'))return;return returnToMain();}if(!confirm('Start a new adventure? Your current progress will be replaced. Export a backup first if you want to keep it.'))return;s=initialSave();modal=null;commit();}
 function returnToMain(){try{const main=localStorage.getItem(SAVE_KEY);if(!main)throw Error('No main campaign save found.');const original=upgradeSave(validateSave(JSON.parse(main)));localStorage.removeItem(REPLAY_KEY);s=original;modal=null;commit();}catch(e){alert('Unable to restore the main campaign: '+e.message);}}
@@ -715,13 +881,15 @@ function trackStage(){const ch=CAMPAIGN_CHAPTER[s.stage]||chapter(s.stage);s.unl
 function chapterTicks(stage){return Array.from({length:8},(_,i)=>`<i class="${chapter(stage)>i?'lit':''}"></i>`).join('');}
 function cue(label){s.actionCue={label,fromStage:s.stage,hpBefore:s.hp};}
 function newChapter(stage,title,body){
+ const previousStage=s.stage;
  const idx=CAMPAIGN_CHAPTER[stage];
  s.stage=stage;s.pending=null;s.combat=null;s.outcome=null;s.tactics=null;
  s.unlocked=Math.max(s.unlocked||1,idx);
  if(!s.checkpoints[idx]){let snap=JSON.parse(JSON.stringify({...s,checkpoints:{},practice:null,storyResult:null,actionCue:null}));s.checkpoints[idx]=snap;}
- outcome(title,body);commit();
+ const bridge=storyBridge(previousStage,stage);
+ outcome(title,bridge?body+' '+bridge:body);commit();
 }
-function moveScene(stage,title,body,success=null){s.stage=stage;outcome(title,body,success);commit();}
+function moveScene(stage,title,body,success=null){const bridge=storyBridge(s.stage,stage);s.stage=stage;outcome(title,bridge?body+' '+bridge:body,success);commit();}
 function usablePotion(){if(s.potions<=0||s.hp>=maxHp())return false;const before=s.hp,d=rand(4)+rand(4)+2;s.potions--;s.hp=clamp(s.hp+d,0,maxHp());learn('resources');learn('inventory');outcome('A little strength returns',`You drink a Potion of Healing: 2d4 + 2 = ${d}. Your HP changes from ${before} to ${s.hp}.`);return true;}
 Object.assign(CHECKS,{
  'c:campShelter':{name:'Wisdom (Survival)',skill:'survival',dc:12,why:'Find a sheltered camp before sleeping.'},
@@ -770,7 +938,7 @@ function campaignHandleCheck(key,success,roll){
  case 'c:interview':s.flags.millerTrust=success;if(success)s.flags.villageEvidence=true;label(success?'A witness comes forward':'A closed door',success?'The miller shows you a seal from the missing shipment: it bears the council treasurer’s crest.':'The miller hesitates to speak openly. They glance at the sealed delivery ledger but are not willing to share it with you.');break;
  case 'c:mislead':s.flags.bluffed=true;s.flags.villageEvidence=success||s.flags.villageEvidence;label(success?'Your bluff works':'The lie spreads',success?'The merchant believes your invented credentials and reveals a hidden invoice. It is a clue, though trust may suffer later.':'The merchant recognizes the bluff and warns others not to trust your account.');break;
  case 'c:confront':s.flags.intimidated=true;s.flags.villageEvidence=success||s.flags.villageEvidence;label(success?'A reluctant disclosure':'A wary silence',success?'The mill worker admits the treasurer ordered them to hide a delivery slip meant for the bridge guard. They show you the slip, but resent being pressured. You have evidence, though trust may suffer.':'The mill worker refuses to show you the sealed papers. Word of your threat may undermine your credibility with the council.');break;
- case 'c:council':s.flags.villageSolved=success;s.stage='trial';s.unlocked=Math.max(s.unlocked,7);if(!s.checkpoints[7])s.checkpoints[7]=JSON.parse(JSON.stringify({...s,checkpoints:{},storyResult:null,actionCue:null}));label(success?'A fair verdict':'The truth needs more work',success?'Your testimony convinces the council to restore the missing supplies and reconcile the bridge guard with the village.':'The council cannot accept all your claims. It agrees to investigate the ledger, and you leave with a lead to the old arcane school.');break;
+ case 'c:council':s.flags.villageSolved=success;s.stage='trial';s.unlocked=Math.max(s.unlocked,7);if(!s.checkpoints[7])s.checkpoints[7]=JSON.parse(JSON.stringify({...s,checkpoints:{},storyResult:null,actionCue:null}));label(success?'A fair verdict':'The truth needs more work',success?'Your testimony convinces the council to restore the missing supplies and reconcile the bridge guard with the village. An elder shows you the mountain watchroad and recommends Elowen’s school: the supply dispute was only one part of the fading network.':'The council cannot accept all your claims. It agrees to investigate the ledger, and you leave with a lead to the old arcane school. An elder suggests speaking with Elowen at the old watchtower school: even if the people here are divided, the failing beacon network still needs understanding.');break;
  case 'c:arcana':s.flags.runesKnown=success;label(success?'You recognize the glyph':'An unfamiliar spell',success?'These runes are linked to an illusion and a ward. You can distinguish the spell’s attack from a saving throw.':'The glyph remains unfamiliar, but the instructor offers a demonstration.');break;
  case 'c:focus':{s.flags.focusHeld=success;label(success?'Your concentration holds':'Your concentration breaks',success?'You steady your breathing despite the pulse of force. Your single concentration effect remains active.':'The pulse distracts you. You lose concentration and the demonstration spell ends.');break;}
  case 'c:final':s.flags.finalInsight=success;s.stage='lanternOath';label(success?'The pattern is clear':'No easy certainty',success?'You see that the guardian seeks a promise, not a fight, and remember the lantern’s first keeper.':'You cannot tell whether the guardian is friend or foe, but can still make a decision.');break;

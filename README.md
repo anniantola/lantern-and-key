@@ -1,15 +1,25 @@
-# Lantern & Key — Complete learning campaign (v2.4.2)
+# Version 2.5.0 — The Watchroad (expanded narrative)
+
+The full eight-chapter adventure now has much fuller scene descriptions, connected travel interludes, recurring places and symbols, character-sensitive narration, and a **Field notes from the watchroad** section inside Journal. All new material appears only when you reach the relevant chapter; later chapters and alternative endings are not exposed prematurely.
+
+**Save compatibility:** No save schema changes. All quest inventory, battle systems, chapter replay, result/Continue pauses and existing branches remain in place. Previous Dangerous Souvenir saves still recover The Last Lantern.
+
+**Update existing GitHub Pages project:** Replace the four root files `game.js`, `style.css`, `sw.js`, and `README.md`. There are no new folders, assets or workflow changes. Export your save JSON before updating as a precaution.
+
+---
+
+# Lantern & Key — Complete learning campaign (v2.5.0)
 
 **A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
 
-## v2.4.2 — Hide completed one-time story actions
+## v2.5.0 — Hide completed one-time story actions
 
 - Single-use investigations, persuasion approaches, and magical demonstrations disappear from the next choice selection once resolved, whether the roll succeeds or fails.
 - The result screen remains visible until Continue is selected. Navigation, resting, healing consumables and repeatable Practice Arena actions are unchanged.
 - Older saved games infer prior attempts from recorded flags and outcomes, without requiring a restart.
 - The tavern's conversation links disappear after their available one-time dialogue is exhausted.
 
-## v2.4.1 — Story consistency and consequence fixes (spoiler-free)
+## v2.5.0 — Story consistency and consequence fixes (spoiler-free)
 
 - Choices now reflect the items you actually collected; there is a meaningful alternative to the key-dependent resolution.
 - Spending a spark to protect your campsite has lasting protection, even if a later search fails.

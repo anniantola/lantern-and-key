@@ -438,3 +438,58 @@ test('Older bridge save remembers a failed check even when its journal was trunc
  assert.doesNotMatch(game.app.innerHTML,/Negotiate with the guard/);
  assert.match(game.app.innerHTML,/Defend yourself on the bridge/);
 });
+
+// v2.5.0: narrative expansion must respect saved state, secrets and pause pacing.
+test('All eight chapters have connective lore without revealing later field notes',()=>{
+ const src=fs.readFileSync(path.join(root,'game.js'),'utf8');
+ for(const stage of ['tavern','passage','vault','forest','camp','trail','crossing','crossingAfter','village','market','witness','council','trial','archive','altar','ascent','levelup','beaconTest','lanternOath','epilogue']){
+  assert.match(src,new RegExp('\\b'+stage+':\\['));
+ }
+ assert.match(src,/function narrativeText\(stage,original\)/);
+ assert.match(src,/function storyBridge\(from,to\)/);
+ assert.match(src,/number<=reached/);
+});
+test('New scene lore does not alter story decisions or the save schema',()=>{
+ const game=simulateGame({...base,stage:'forest',ending:'restore',flags:{},inventory:{rope:1,rations:2,torch:1,smoke:1,lantern:0}});
+ assert.match(game.app.innerHTML,/watchroad/);
+ assert.match(game.app.innerHTML,/restored light/);
+ game.act('c:camp');assert.match(game.app.innerHTML,/YOUR LAST ACTION/);
+ game.act('continueStory');assert.equal(game.read().stage,'camp');
+ assert.match(game.app.innerHTML,/standing stones/);
+ assert.equal(game.read().inventory.lantern,0);
+});
+test('Lantern holder sees distinct forest narration; older dangerous-souvenir save keeps item',()=>{
+ const game=simulateGame({...base,stage:'forest',ending:'take',inventory:{rope:1,rations:2,torch:1,smoke:1,lantern:0}});
+ assert.match(game.app.innerHTML,/Carry(?:ing| it)/);
+ game.modal('inventory');assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+ game.modal('journal');
+ assert.match(game.app.innerHTML,/Field notes from the watchroad/);
+ assert.doesNotMatch(game.app.innerHTML,/The mountain watchtower/);
+});
+test('Field notes unlock progressively and journal preserves spoiler boundaries',()=>{
+ const early=simulateGame({...base,stage:'tavern',unlocked:1});
+ early.modal('journal');
+ assert.match(early.app.innerHTML,/The three-eyed wolf/);
+ assert.doesNotMatch(early.app.innerHTML,/The mountain watchtower/);
+ const late=simulateGame({...base,stage:'epilogue',unlocked:8,level:2,flags:{beaconPassed:true}});
+ late.modal('journal');
+ assert.match(late.app.innerHTML,/The mountain watchtower/);
+});
+test('The council decision connects its outcome to the next destination',()=>{
+ for(const roll of [0.99,0.01]){
+  const game=simulateGame({...base,stage:'council',unlocked:6,flags:{villageEvidence:true}}, {},roll);
+  game.act('c:council');
+  game.act('rollCheck');
+  // Both success and failure should offer an in-world reason to travel onward.
+  assert.match(game.app.innerHTML,/Elowen|watchtower|watchroad|school/);
+ }
+});
+test('Transitions add the appropriate interlude while keeping result pause',()=>{
+ const game=simulateGame({...base,stage:'crossingAfter',unlocked:5});
+ game.act('c:toVillage');
+ assert.equal(game.read().stage,'village');
+ assert.match(game.app.innerHTML,/The banner on the far bank bears a grain tally/);
+ game.act('continueStory');
+ assert.match(game.app.innerHTML,/Briar Hollow/);
+ assert.doesNotMatch(game.app.innerHTML,/The banner on the far bank bears a grain tally/);
+});
