@@ -194,7 +194,7 @@ function rollCheck() {
  const die=die2===null?die1:c.mode==='advantage'?Math.max(die1,die2):Math.min(die1,die2);
  const total=die+c.bonus, success=total>=c.dc;
  const roll={name:c.name,die1,die2,die,total,modifier:c.bonus,dc:c.dc,mode:c.mode,success};
- s.checks.push(roll); s.actionCue=c.actionCue||{label:c.why,fromStage:s.stage,hpBefore:s.hp}; s.pending=null;
+ s.checks.push(roll); rememberChoice(c.key); s.actionCue=c.actionCue||{label:c.why,fromStage:s.stage,hpBefore:s.hp}; s.pending=null;
  record(`Rolled ${c.name}: ${die1}${die2===null?'':` / ${die2} (kept ${die})`} ${signed(c.bonus)} = ${total} against DC ${c.dc} — ${success?'success':'failure'}.`,'roll');
  if(!success && s.classId==='fighter' && s.level===2 && s.secondWind>0 && c.name!=='Dexterity Saving Throw' && c.name!=='Constitution Saving Throw'){s.mindOffer={key:c.key,roll};s.actionCue=c.actionCue;commit();return;}
  if(!campaignHandleCheck(c.key,success,roll)) handleCheckResult(c.key,success,roll);
@@ -234,7 +234,8 @@ function handleCheckResult(key,win,roll) {
 function act(key) {
  if(s.pending||s.storyResult) return;
  if(campaignAct(key))return;
- const selected=scene().choices.find(c=>c.key===key);
+ const selected=scene().choices.find(c=>c.key===key && availableStoryChoice(c));
+ if(SINGLE_USE_STORY_ACTIONS.has(key)&&!selected)return;
  s.actionCue={label:selected?.title||({retryFight:'Retry the encounter',stepIn:'Continue through the corridor',advanceHall:'Advance down the corridor'}[key])||key,fromStage:s.stage,hpBefore:s.hp};
  switch(key) {
  case 'observe':case 'keeperIntro':case 'insightIntro':case 'strangerTrust':case 'keeperHelp':case 'sneakDoor':case 'forceDoor':case 'inspectDoor':case 'pickDoor':case 'scanHall':case 'disarmTrap':case 'trapSave':case 'runTrap':case 'studyRunes':case 'wardTalk':case 'wardSneak':case 'improviseBeacon':startCheck(key);return;
@@ -472,7 +473,7 @@ function renderScene() {
  const v=scene();const isSpecial=['ending','defeat'].includes(s.stage);
  if(isSpecial)return renderEnding();
  if(s.stage==='combat')return `<section class="story-screen battle-screen"><div class="chapter-strip"><span>CHAPTER 03</span><div class="chapter-progress"><i class="lit"></i><i class="lit"></i><i class="lit"></i></div><span>THE CHAMBER OF ECHOES</span></div><div class="combat-banner"><span>✦ THE CHAMBER OF ECHOES</span><h2>The Echo Warden awakens</h2><p>Stone grinds against stone. The guardian raises its fists.</p></div><div class="combat-body">${renderCombat()}</div></section>`;
- return `<section class="story-screen"><div class="chapter-strip"><span>CHAPTER ${String(v.chapter).padStart(2,'0')}</span><div class="chapter-progress">${chapterTicks(s.stage)}</div><span>${v.label}</span></div><div class="story-art"><img src="assets/${art(s.stage)}.svg" alt="${({tavern:'A candlelit tavern with a mysterious traveler',passage:'An ancient stone passage',vault:'A blue-glowing underground sanctuary',forest:'A campfire in a moonlit forest',crossing:'An old ruined stone bridge',village:'A lively medieval village market',arcane:'An enchanted library with arcane glyphs',summit:'Adventurers overlooking distant mountains'})[art(s.stage)]||'Fantasy adventure scene'}"/><span class="art-corner">✧ AN ORIGINAL ADVENTURE</span></div><div class="story-body"><span class="tiny-index">${esc(v.label)}</span><h2>${esc(v.heading)}</h2><div class="prose">${v.text.map(p=>`<p>${fmt(p)}</p>`).join('')}</div>${renderOutcome()}${s.pending?renderCheck():s.stage==='combat'?renderCombat():`<div class="choice-panel"><div class="choice-label"><span>WHAT DO YOU DO?</span><small>There is no wrong way to be curious.</small></div><div class="choice-list">${v.choices.filter(Boolean).map((c,i)=>`<button class="choice-btn" data-act="${c.key}" ${c.locked?'disabled':''}><span class="choice-icon">${c.icon}</span><span class="choice-description"><strong>${esc(c.title)}</strong><small>${s.mode==='tabletop'?esc(c.detail.replace(/ · (?:[^·]*?(?:DC|check|advantage|saving throw)[^·]*)/gi,'').replace(/DC \d+/g,'').trim()):esc(c.detail)}</small></span><span class="choice-chevron">↗</span></button>`).join('')}</div></div>${s.mode==='guided'?`<div class="lesson"><div>✦ &nbsp; DM'S NOTE</div><p>${esc(v.lesson||'Your decisions can change the outcome.')}</p></div>`:''}`}</div></section>`;
+ return `<section class="story-screen"><div class="chapter-strip"><span>CHAPTER ${String(v.chapter).padStart(2,'0')}</span><div class="chapter-progress">${chapterTicks(s.stage)}</div><span>${v.label}</span></div><div class="story-art"><img src="assets/${art(s.stage)}.svg" alt="${({tavern:'A candlelit tavern with a mysterious traveler',passage:'An ancient stone passage',vault:'A blue-glowing underground sanctuary',forest:'A campfire in a moonlit forest',crossing:'An old ruined stone bridge',village:'A lively medieval village market',arcane:'An enchanted library with arcane glyphs',summit:'Adventurers overlooking distant mountains'})[art(s.stage)]||'Fantasy adventure scene'}"/><span class="art-corner">✧ AN ORIGINAL ADVENTURE</span></div><div class="story-body"><span class="tiny-index">${esc(v.label)}</span><h2>${esc(v.heading)}</h2><div class="prose">${v.text.map(p=>`<p>${fmt(p)}</p>`).join('')}</div>${renderOutcome()}${s.pending?renderCheck():s.stage==='combat'?renderCombat():`<div class="choice-panel"><div class="choice-label"><span>WHAT DO YOU DO?</span><small>There is no wrong way to be curious.</small></div><div class="choice-list">${v.choices.filter(availableStoryChoice).map((c,i)=>`<button class="choice-btn" data-act="${c.key}" ${c.locked?'disabled':''}><span class="choice-icon">${c.icon}</span><span class="choice-description"><strong>${esc(c.title)}</strong><small>${s.mode==='tabletop'?esc(c.detail.replace(/ · (?:[^·]*?(?:DC|check|advantage|saving throw)[^·]*)/gi,'').replace(/DC \d+/g,'').trim()):esc(c.detail)}</small></span><span class="choice-chevron">↗</span></button>`).join('')}</div></div>${s.mode==='guided'?`<div class="lesson"><div>✦ &nbsp; DM'S NOTE</div><p>${esc(v.lesson||'Your decisions can change the outcome.')}</p></div>`:''}`}</div></section>`;
 }
 function renderEnding(){const won=s.stage==='ending';const escape=s.ending==='escape';const total=s.checks.length;const successes=s.checks.filter(x=>x.success).length;
  return `<div class="end-screen"><div class="end-art"><img src="assets/vault.svg" alt="A mystical vault with a glowing lantern"/><div class="end-seal">${won&&!escape?'✦':'◇'}</div></div><div class="end-content"><span class="tiny-index">${won?'ADVENTURE COMPLETE':'CHECKPOINT REACHED'}</span><h2>${won?'Your story is just beginning':'Every hero has setbacks'}</h2>${renderOutcome()}<p class="end-main">${won?(escape?'You learned that a retreat is a meaningful choice too. There will be other adventures.':'The tavern slowly returns to silence, but you leave knowing that your choices changed the world, even in a small way.'):'You can safely try the final encounter again. D&D is not about perfection; it is about discovering a story together.'}</p><div class="end-stats"><div><strong>${total}</strong><span>CHECKS MADE</span></div><div><strong>${successes}</strong><span>CHECKS PASSED</span></div><div><strong>${s.journal.filter(x=>x.kind==='combat').length}</strong><span>COMBAT EVENTS</span></div></div>${won?`<div class="next-chapter"><span>✧ &nbsp; WHAT YOU LEARNED</span><p>Exploration, skill checks, difficulty classes, roleplaying, ${s.flags.trapPassed?'saving throws, ':''}${s.flags.victory?'combat, ':''}and how different choices lead to different outcomes.</p></div>`:''}<div class="end-buttons">${!won?`<button class="primary" data-act="retryFight">${s.flags.defeatSource==='trap'?'Retry from the corridor':'Retry encounter with a hint'} <span>↻</span></button>`:''}${won?`<button class="primary" data-act="enterForest">Continue to Chapter 4 — Blackwood <span>→</span></button>`:''}<button class="${won?'secondary':'secondary'}" data-act="restart">Start a new adventure <span>→</span></button><button class="secondary" data-modal="journal">Read your adventure journal</button></div></div></div>`;
@@ -507,7 +508,7 @@ function renderAdventureNav(){
 }
 function render(){
  const playing=Boolean(s.classId&&s.stage!=='welcome');
- app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v2.4.1</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
+ app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v2.4.2</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
 }
 function restart(){if(s.replay){if(!confirm('Discard this replay and return to your original campaign?'))return;return returnToMain();}if(!confirm('Start a new adventure? Your current progress will be replaced. Export a backup first if you want to keep it.'))return;s=initialSave();modal=null;commit();}
 function returnToMain(){try{const main=localStorage.getItem(SAVE_KEY);if(!main)throw Error('No main campaign save found.');const original=upgradeSave(validateSave(JSON.parse(main)));localStorage.removeItem(REPLAY_KEY);s=original;modal=null;commit();}catch(e){alert('Unable to restore the main campaign: '+e.message);}}
@@ -574,6 +575,49 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
 // v2 guided campaign: all chapters share the legacy save key and paused result UI.
 const CHAPTER_NAMES=['Exploration & checks','Hazards & saving throws','Dialogue & combat','Resting & recovery','Movement & positioning','Roleplaying & evidence','Magic & concentration','Leveling up'];
 const CAMPAIGN_CHAPTER={forest:4,camp:4,trail:4,crossing:5,crossingBattle:5,crossingAfter:5,village:6,market:6,witness:6,council:6,trial:7,archive:7,altar:7,ascent:8,levelup:8,beaconTest:8,lanternOath:8,epilogue:8};
+// One-off story initiatives should not be offered again after a resolved attempt.
+// The result pause still shows the action; only the *next* choice list is filtered.
+const SINGLE_USE_STORY_ACTIONS = new Set([
+ 'c:forestScout','c:campShelter','c:bridgeInspect','c:bridgeParley',
+ 'c:marketInsight','c:interview','c:mislead','c:confront','c:arcana',
+ 'c:spellAttack','c:spellSave','c:concentrate','c:beaconInsight'
+]);
+// Earlier saves did not record attempted actions directly. Existing state flags,
+// including false results, and the outcome journal are enough to restore them.
+const LEGACY_ACTION_FLAGS = {
+ 'c:forestScout':'trailSafe','c:campShelter':'campShelterAttempted',
+ 'c:bridgeInspect':'bridgeSafe','c:bridgeParley':'bridgeParley',
+ 'c:marketInsight':'marketTruth','c:interview':'millerTrust',
+ 'c:mislead':'bluffed','c:confront':'intimidated','c:arcana':'runesKnown',
+ 'c:spellAttack':'magicAttack','c:spellSave':'magicSave',
+ 'c:concentrate':'concentrationTrial'
+};
+const LEGACY_ACTION_RESULTS = {
+ 'c:bridgeInspect':['A stable line across','Cracked stones everywhere'],
+ 'c:bridgeParley':['Terms of passage','A refused bargain'],
+ 'c:beaconInsight':['The echo acknowledges your insight','A question remains']
+};
+function chosenOnce(key){
+ if(!SINGLE_USE_STORY_ACTIONS.has(key))return false;
+ if(s.flags?.storyActions?.[key]===true)return true;
+ const flag=LEGACY_ACTION_FLAGS[key];
+ if(flag&&Object.prototype.hasOwnProperty.call(s.flags||{},flag))return true;
+ const titles=LEGACY_ACTION_RESULTS[key];
+ return !!titles&&s.journal.some(entry=>titles.some(title=>entry.text.startsWith(title+':')));
+}
+function rememberChoice(key){
+ if(!SINGLE_USE_STORY_ACTIONS.has(key))return;
+ if(!s.flags.storyActions||typeof s.flags.storyActions!=='object'||Array.isArray(s.flags.storyActions))s.flags.storyActions={};
+ s.flags.storyActions[key]=true;
+}
+function availableStoryChoice(c){
+ if(!c||chosenOnce(c.key))return false;
+ // Once the one-time conversation has concluded, don't keep sending the
+ // player back to a character who has no new dialogue or discoveries.
+ if(c.key==='goStranger'&&s.flags.triedStranger)return false;
+ if(c.key==='goKeeper'&&s.flags.triedKeeper)return false;
+ return true;
+}
 const CAMPAIGN_ART={forest:'forest',camp:'forest',trail:'forest',crossing:'crossing',crossingBattle:'crossing',crossingAfter:'crossing',village:'village',market:'village',witness:'village',council:'village',trial:'arcane',archive:'arcane',altar:'arcane',ascent:'summit',levelup:'summit',beaconTest:'summit',lanternOath:'summit',epilogue:'summit'};
 const CHAPTER_START={1:'tavern',2:'passage',3:'vault',4:'forest',5:'crossing',6:'village',7:'trial',8:'ascent'};
 const LESSONS={
@@ -723,7 +767,7 @@ function campaignHandleCheck(key,success,roll){
  case 'c:bridgeInspect':s.flags.bridgeSafe=success;label(success?'A stable line across':'Cracked stones everywhere',success?'A row of darker stones leads to a safe foothold across the bridge. The rocky bank also offers half cover.':'You cannot identify a safe crossing. You can still negotiate or fight for passage.');break;
  case 'c:bridgeParley':s.flags.bridgeParley=success;if(success){s.stage='crossingAfter';label('Terms of passage','The toll keeper lowers their bow when you offer to repair a broken signpost. They allow you across without a fight.');}else label('A refused bargain','“No more promises,” the toll keeper snaps, drawing their sword. You can defend yourself or attempt another route.');break;
  case 'c:marketInsight':s.flags.marketTruth=success;label(success?'An overlooked contradiction':'Difficult to tell',success?'Two entries in the merchant’s own ledger assign different totals to the same shipment, and one is written in much fresher ink. Someone altered the tally. You have not yet seen the miller’s records.':'The merchant keeps a steady face; you do not yet know which story is true.');break;
- case 'c:interview':s.flags.millerTrust=success;if(success)s.flags.villageEvidence=true;label(success?'A witness comes forward':'A closed door',success?'The miller shows you a seal from the missing shipment: it bears the council treasurer’s crest.':'The miller hesitates to speak openly, but offers you a look at the delivery ledger if you return later.');break;
+ case 'c:interview':s.flags.millerTrust=success;if(success)s.flags.villageEvidence=true;label(success?'A witness comes forward':'A closed door',success?'The miller shows you a seal from the missing shipment: it bears the council treasurer’s crest.':'The miller hesitates to speak openly. They glance at the sealed delivery ledger but are not willing to share it with you.');break;
  case 'c:mislead':s.flags.bluffed=true;s.flags.villageEvidence=success||s.flags.villageEvidence;label(success?'Your bluff works':'The lie spreads',success?'The merchant believes your invented credentials and reveals a hidden invoice. It is a clue, though trust may suffer later.':'The merchant recognizes the bluff and warns others not to trust your account.');break;
  case 'c:confront':s.flags.intimidated=true;s.flags.villageEvidence=success||s.flags.villageEvidence;label(success?'A reluctant disclosure':'A wary silence',success?'The mill worker admits the treasurer ordered them to hide a delivery slip meant for the bridge guard. They show you the slip, but resent being pressured. You have evidence, though trust may suffer.':'The mill worker refuses to show you the sealed papers. Word of your threat may undermine your credibility with the council.');break;
  case 'c:council':s.flags.villageSolved=success;s.stage='trial';s.unlocked=Math.max(s.unlocked,7);if(!s.checkpoints[7])s.checkpoints[7]=JSON.parse(JSON.stringify({...s,checkpoints:{},storyResult:null,actionCue:null}));label(success?'A fair verdict':'The truth needs more work',success?'Your testimony convinces the council to restore the missing supplies and reconcile the bridge guard with the village.':'The council cannot accept all your claims. It agrees to investigate the ledger, and you leave with a lead to the old arcane school.');break;
@@ -785,10 +829,11 @@ function campaignAct(key){
  if(key==='retryFight'&&s.stage==='defeat'&&s.flags.defeatSource==='bridge'){s.hp=Math.max(1,Math.ceil(maxHp()/2));s.stage='crossing';s.tactics=null;cue('Try the bridge again');outcome('Another way across','You regain your footing at the bridge and can choose a safer path or face the sentry again.');commit();return true;}
  if(!key.startsWith('c:'))return false;
  if(s.storyResult||s.pending)return true;
- const v=campaignScene(),action=v.choices.find(x=>x?.key===key);
+ const v=campaignScene(),action=v.choices.find(x=>availableStoryChoice(x)&&x.key===key);
  if(!action||action.locked)return true;
  cue(action.title);
  if(CHECKS[key]){campaignCheck(key,action.title);return true;}
+ rememberChoice(key);
  const advance=(stage,title,desc)=>moveScene(stage,title,desc);
  switch(key){
  case 'c:lanternWard':{

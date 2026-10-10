@@ -373,3 +373,68 @@ test('v2.4 saves repair overwritten lantern shelter without consuming another sp
  assert.equal(g.read().lanternSparks,2);
  assert.equal(g.read().inventory.lantern,1);
 });
+
+
+// v2.4.2: one-time story actions vanish after resolving, not just when successful.
+test('A failed bridge investigation disappears but alternatives remain',()=>{
+ const game=simulateGame({...base,stage:'crossing',flags:{},hp:8}, {}, 0);
+ assert.match(game.app.innerHTML,/Study the ruined masonry/);
+ game.act('c:bridgeInspect');game.act('rollCheck');
+ assert.match(game.app.innerHTML,/The next scene is paused/);
+ game.act('continueStory');
+ assert.doesNotMatch(game.app.innerHTML,/Study the ruined masonry/);
+ assert.match(game.app.innerHTML,/Negotiate with the guard/);
+ assert.match(game.app.innerHTML,/Defend yourself on the bridge/);
+ assert.equal(game.read().flags.storyActions['c:bridgeInspect'],true);
+});
+test('A failed attempt to negotiate can not be rerolled without new circumstances',()=>{
+ const game=simulateGame({...base,stage:'crossing',flags:{},hp:8}, {}, 0);
+ game.act('c:bridgeParley');game.act('rollCheck');game.act('continueStory');
+ assert.doesNotMatch(game.app.innerHTML,/Negotiate with the guard/);
+ assert.match(game.app.innerHTML,/Defend yourself on the bridge/);
+});
+test('Failed investigation in market disappears while navigation remains',()=>{
+ const game=simulateGame({...base,stage:'market',flags:{},hp:8}, {}, 0);
+ game.act('c:marketInsight');game.act('rollCheck');game.act('continueStory');
+ assert.doesNotMatch(game.app.innerHTML,/Study the merchant’s manner/);
+ assert.match(game.app.innerHTML,/Compare the miller’s account/);
+ assert.match(game.app.innerHTML,/Take your findings to the council/);
+});
+test('Successful and failed magical demonstrations are one-time story choices',()=>{
+ const game=simulateGame({...base,stage:'altar',flags:{},hp:8}, {}, 0);
+ game.act('c:spellAttack');game.act('continueStory');
+ assert.doesNotMatch(game.app.innerHTML,/Watch a Fire Bolt attack roll/);
+ assert.match(game.app.innerHTML,/Observe Burning Hands/);
+ game.act('c:concentrate');game.act('rollCheck');game.act('continueStory');
+ assert.doesNotMatch(game.app.innerHTML,/Maintain a concentration effect/);
+ assert.match(game.app.innerHTML,/Finish the trial and follow the beacon road/);
+});
+test('Old failed investigation saves hide repeated choices using journal history',()=>{
+ const game=simulateGame({...base,stage:'crossing',hp:8,flags:{},journal:[{kind:'failure',text:'Cracked stones everywhere: You cannot identify a safe crossing.',time:'2026-10-10'}]});
+ assert.doesNotMatch(game.app.innerHTML,/Study the ruined masonry/);
+ assert.match(game.app.innerHTML,/Negotiate with the guard/);
+});
+test('Old failed social checks are also recognized when the stored result is false',()=>{
+ const game=simulateGame({...base,stage:'witness',hp:8,flags:{millerTrust:false}});
+ assert.doesNotMatch(game.app.innerHTML,/Promise the miller a fair hearing/);
+ assert.match(game.app.innerHTML,/Bring what you know to the council/);
+});
+test('Tavern dialogue options vanish after their one-time conversation finishes',()=>{
+ const game=simulateGame({...base,stage:'tavernHub',hp:8,flags:{triedStranger:true,triedKeeper:true}});
+ assert.doesNotMatch(game.app.innerHTML,/Speak to the stranger/);
+ assert.doesNotMatch(game.app.innerHTML,/Talk to the tavern keeper/);
+ assert.match(game.app.innerHTML,/Approach the locked door/);
+});
+test('Consumables, rests, and travel options remain repeatable',()=>{
+ const game=simulateGame({...base,stage:'camp',hp:7,hitDice:1,potions:2,flags:{},inventory:{rations:2,rope:1}});
+ game.act('c:shortRest');game.act('rest:finish');game.act('continueStory');
+ assert.match(game.app.innerHTML,/Take a Short Rest/);
+ assert.match(game.app.innerHTML,/Drink a Potion of Healing/);
+ assert.match(game.app.innerHTML,/Break camp and follow the road/);
+});
+test('Older bridge save remembers a failed check even when its journal was truncated',()=>{
+ const game=simulateGame({...base,stage:'crossing',hp:8,flags:{bridgeSafe:false,bridgeParley:false},journal:[]});
+ assert.doesNotMatch(game.app.innerHTML,/Study the ruined masonry/);
+ assert.doesNotMatch(game.app.innerHTML,/Negotiate with the guard/);
+ assert.match(game.app.innerHTML,/Defend yourself on the bridge/);
+});

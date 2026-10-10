@@ -1,6 +1,13 @@
-# Lantern & Key — Complete learning campaign (v2.4.1)
+# Lantern & Key — Complete learning campaign (v2.4.2)
 
 **A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
+
+## v2.4.2 — Hide completed one-time story actions
+
+- Single-use investigations, persuasion approaches, and magical demonstrations disappear from the next choice selection once resolved, whether the roll succeeds or fails.
+- The result screen remains visible until Continue is selected. Navigation, resting, healing consumables and repeatable Practice Arena actions are unchanged.
+- Older saved games infer prior attempts from recorded flags and outcomes, without requiring a restart.
+- The tavern's conversation links disappear after their available one-time dialogue is exhausted.
 
 ## v2.4.1 — Story consistency and consequence fixes (spoiler-free)
 
