@@ -1,6 +1,6 @@
 # Lantern & Key — a beginner tabletop-RPG tutorial
 
-A complete, **single-player, mobile-friendly HTTPS website** that teaches core D&D-compatible mechanics through an original branching fantasy adventure. Version 1.2.
+A complete, **single-player, mobile-friendly HTTPS website** that teaches core D&D-compatible mechanics through an original branching fantasy adventure. Version 1.3.
 
 ## Deploy to GitHub Pages — via GitHub Actions
 
@@ -50,3 +50,7 @@ No external gameplay libraries or APIs. Three local original SVG illustrations, 
 ## Version 1.2 — clearer combat feedback
 
 Combat now pauses after **every resolved action**. A result card explains the action, dice rolls, damage/healing, and the before/after HP. Press **Continue** to advance to the opponent's response or your next action. Both combatants have prominent, labeled HP bars, visible on small screens. Existing version-1 saves and JSON exports remain compatible.
+
+## Version 1.3 — story action results and paced chapter reveals
+
+After every story choice, including simply moving to another location, the app pauses on a dedicated action-and-result card. The next scene, combat, or ending remains hidden until **Continue the story** is tapped. Skill checks still ask for a d20 first; their completed result has its own screen showing success or failure, actual dice arithmetic, and any HP change. Story pauses persist in local and exported JSON saves. The previous v1.2 combat action-result pacing is unchanged. Existing v1 saves remain compatible.
