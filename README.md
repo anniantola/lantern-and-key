@@ -1,3 +1,15 @@
+# Lantern & Key v2.5.1 — Story Continuity Patch
+
+This is a **spoiler-free corrective update** to the eight-chapter Watchroad story. It preserves the v2.5 expanded narrative, all choices, the fixed mobile navigation, chapter replay and JSON save compatibility.
+
+The story now respects item ownership and NPC states, time spent resting versus traveling, the consequences of a previous refusal, and clues the character has actually examined. Equipment left behind is no longer carried in the Pack. Deception and intimidation now affect the council's Persuasion check; evidence can offset that mistrust. Later dialogue does not presume you discovered information in an optional scene.
+
+For older saves, the app automatically reconciles rope already used at the bridge **once**, and recovers a previously failed negotiation from the journal when possible. These migrations do not reset the campaign or the lantern.
+
+**To update an existing GitHub Pages app:** Replace the following five root files from the update ZIP: `game.js`, `tests-core.cjs`, `sw.js`, `README.md`, `RULES-AUDIT.md`. No new folders, artwork, or workflow changes. Back up your current save JSON first. GitHub Actions will run the expanded 74-test suite before publishing.
+
+---
+
 # Version 2.5.0 — The Watchroad (expanded narrative)
 
 The full eight-chapter adventure now has much fuller scene descriptions, connected travel interludes, recurring places and symbols, character-sensitive narration, and a **Field notes from the watchroad** section inside Journal. All new material appears only when you reach the relevant chapter; later chapters and alternative endings are not exposed prematurely.

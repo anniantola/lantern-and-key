@@ -339,7 +339,8 @@ test('Unscouted and rope-secured travel no longer claims the player took other r
  assert.doesNotMatch(g.app.innerHTML,/muddy detour reminded/);
  assert.equal(g.read().inventory.rations,2);
  g.act('c:toBridge');g.act('continueStory');g.act('c:ropeCross');g.act('continueStory');
- assert.match(g.app.innerHTML,/rope still stretches/);
+ assert.match(g.app.innerHTML,/rope remains tied/);
+ assert.equal(g.read().inventory.rope,0);
  assert.doesNotMatch(g.app.innerHTML,/cost of crossing is written/);
  assert.equal(g.read().flags.bridgeFought,undefined);
 });
@@ -492,4 +493,101 @@ test('Transitions add the appropriate interlude while keeping result pause',()=>
  game.act('continueStory');
  assert.match(game.app.innerHTML,/Briar Hollow/);
  assert.doesNotMatch(game.app.innerHTML,/The banner on the far bank bears a grain tally/);
+});
+
+// v2.5.1: causal continuity, not just stage reachability.
+test('A key already transferred to the hero is not simultaneously in the traveler’s hand',()=>{
+ const withKey=simulateGame({...base,stage:'tavernHub',flags:{sawKey:true,key:true}});
+ assert.match(withKey.app.innerHTML,/key now rests in your possession/);
+ assert.doesNotMatch(withKey.app.innerHTML,/traveler keeps one hand closed around/);
+ const withoutKey=simulateGame({...base,stage:'tavernHub',flags:{sawKey:true}});
+ assert.match(withoutKey.app.innerHTML,/traveler keeps one hand closed around/);
+});
+test('Defeated Warden stays defeated for taking and repairing the lantern',()=>{
+ const take=simulateGame({...base,stage:'reveal',flags:{victory:true,key:true},ending:null});
+ take.act('take');assert.match(take.read().storyResult.body,/Warden’s silent remains/);
+ assert.doesNotMatch(take.read().storyResult.body,/Warden watches/);
+ const restore=simulateGame({...base,stage:'reveal',flags:{victory:true,key:true},ending:null});
+ restore.act('restore');assert.match(restore.read().storyResult.body,/scattered dust/);
+ assert.doesNotMatch(restore.read().storyResult.body,/guardian bows/);
+ const peaceful=simulateGame({...base,stage:'reveal',flags:{peaceful:true,key:true},ending:null});
+ peaceful.act('restore');assert.match(peaceful.read().storyResult.body,/guardian bows/);
+});
+test('Camp departure reflects whether a Long Rest took place or was interrupted',()=>{
+ const quick=simulateGame({...base,stage:'camp',flags:{},hp:7});
+ quick.act('c:toTrail');assert.doesNotMatch(quick.read().storyResult.body,/daybreak|At first light|After a full night/i);
+ assert.match(quick.read().storyResult.body,/without waiting for a full night/);
+ const rested=simulateGame({...base,stage:'camp',flags:{longRested:true},hp:7});
+ rested.act('c:toTrail');assert.match(rested.read().storyResult.body,/full night of rest|dawn/i);
+ const interrupted=simulateGame({...base,stage:'camp',flags:{longInterrupted:true},hp:7});
+ interrupted.act('c:toTrail');assert.match(interrupted.read().storyResult.body,/interrupted|night sky/i);
+ assert.doesNotMatch(interrupted.read().storyResult.body,/dawn spreads|At first light/i);
+});
+test('Failed negotiation remains part of rope-crossing narration, rope leaves Pack',()=>{
+ const g=simulateGame({...base,stage:'crossing',flags:{bridgeParley:false,bridgeRefused:true},inventory:{rope:1,rations:2,torch:1,smoke:1},hp:7});
+ g.act('c:ropeCross');assert.equal(g.read().inventory.rope,0);
+ assert.match(g.read().storyResult.body,/already refused/);
+ g.act('continueStory');assert.match(g.app.innerHTML,/earlier refusal/);
+ g.modal('inventory');assert.match(g.app.innerHTML,/50 ft rope ×0/);
+});
+test('Lantern crossing remembers an earlier refusal without losing the successful crossing state',()=>{
+ const g=simulateGame({...base,stage:'crossing',ending:'take',lanternSparks:2,flags:{bridgeParley:false,bridgeRefused:true},inventory:{rope:1,rations:2,torch:1,smoke:1,lantern:1},hp:7});
+ g.act('c:lanternCross');assert.equal(g.read().lanternSparks,1);
+ assert.equal(g.read().flags.bridgeParley,true);
+ assert.equal(g.read().flags.bridgeRefused,true);
+ assert.match(g.read().storyResult.body,/first request was refused/);
+ g.act('continueStory');assert.match(g.app.innerHTML,/After refusing your first bargain/);
+});
+test('Prior saves with a rope tied to the bridge migrate once, without repeated loss',()=>{
+ const old={...base,stage:'crossingAfter',flags:{usedRope:true},inventory:{rope:1,rations:2,torch:1,smoke:1}};
+ const g=simulateGame(old); // read-only migration does not commit until the next state change
+ g.act('c:toVillage');assert.equal(g.read().inventory.rope,0);
+ assert.equal(g.read().flags.ropeSecured,true);
+ const again=simulateGame(g.read());again.act('c:toMarket');assert.equal(again.read().inventory.rope,0);
+});
+test('Unexamined market ledger never becomes an established contradiction during travel',()=>{
+ const noClue=simulateGame({...base,stage:'market',flags:{},hp:7});
+ noClue.act('c:toWitness');assert.match(noClue.read().storyResult.body,/without a confirmed contradiction/);
+ assert.doesNotMatch(noClue.read().storyResult.body,/figures.*cannot both be true/);
+ const verified=simulateGame({...base,stage:'market',flags:{marketTruth:true},hp:7});
+ verified.act('c:toWitness');assert.match(verified.read().storyResult.body,/figures you noticed/);
+ const noWitnessClue=simulateGame({...base,stage:'witness',flags:{},hp:7});
+ noWitnessClue.act('c:toMarket');assert.match(noWitnessClue.read().storyResult.body,/questions still unanswered/);
+});
+test('Council rolls apply advantage from evidence, disadvantage from mistrust, and cancellation',()=>{
+ for(const [flags,expected] of [
+  [{},'normal'],[{villageEvidence:true},'advantage'],[{bluffed:true},'disadvantage'],
+  [{intimidated:true},'disadvantage'],[{villageEvidence:true,bluffed:true},'normal'],
+  [{villageEvidence:true,intimidated:true},'normal']]){
+  const g=simulateGame({...base,stage:'council',flags,hp:7});g.act('c:council');
+  assert.equal(g.read().pending.mode,expected,JSON.stringify(flags));
+ }
+});
+test('Council result acknowledges previous mistrust while maintaining correct verdict',()=>{
+ const g=simulateGame({...base,stage:'council',flags:{bluffed:true,villageEvidence:true},hp:7},{},.99);
+ g.act('c:council');g.act('rollCheck');
+ assert.equal(g.read().flags.villageSolved,true);
+ assert.equal(g.read().flags.councilHadMistrust,true);
+ assert.match(g.read().storyResult.body,/still distrust your methods/);
+});
+test('Successful final insight draws on established watchroad imagery, not undiscovered first keeper',()=>{
+ const g=simulateGame({...base,stage:'levelup',level:2,flags:{beaconPassed:true},hp:7,ending:'return'},{},.99);
+ g.act('c:toFinal');g.act('rollCheck');
+ assert.match(g.read().storyResult.body,/three-eyed wolf mark/);
+ assert.doesNotMatch(g.read().storyResult.body,/remember the lantern’s first keeper/);
+});
+test('Backtracking to camp does not mislabel the next departure as dawn',()=>{
+ const g=simulateGame({...base,stage:'trail',flags:{longRested:true,campRestedThisVisit:true},hp:7});
+ g.act('c:backCamp');g.act('continueStory');
+ assert.equal(g.read().flags.campRestedThisVisit,false);
+ assert.match(g.app.innerHTML,/Attempt a Long Rest/);
+ g.act('c:toTrail');
+ assert.doesNotMatch(g.read().storyResult.body,/After a full night of rest|At first light|dawn spreads/);
+ assert.match(g.read().storyResult.body,/without waiting for a full night/);
+});
+test('Older saves infer a prior failed bargain from the journal even after lantern crossing',()=>{
+ const old={...base,stage:'crossingAfter',ending:'take',flags:{lanternBridge:true,bridgeParley:true},inventory:{rope:1,lantern:1},journal:[{text:'A refused bargain: the sentry refuses',kind:'failure'}]};
+ const g=simulateGame(old);
+ assert.match(g.app.innerHTML,/After refusing your first bargain/);
+ g.act('c:toVillage');assert.equal(g.read().flags.bridgeRefused,true);
 });

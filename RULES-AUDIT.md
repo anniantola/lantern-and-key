@@ -1,3 +1,11 @@
+## v2.5.1 — Narrative-state consistency and social adjudication
+
+This update does not change the D&D rules baseline. In the council scene, credible evidence provides advantage on the Persuasion check and demonstrated mistrust from prior deception or intimidation imposes disadvantage. When both apply, they cancel, as per the normal advantage/disadvantage rules. The choice to award them is scenario-specific DM adjudication, **not** a universal SRD rule that every lie or threat imposes disadvantage.
+
+Movement, resting, and item transfers now also have matching narrative and inventory consequences. The tied bridge rope remains at the crossing. Chapter travel descriptions check whether a Long Rest was completed on the **current** camp visit. These changes are specific to this adventure, not new tabletop rules.
+
+---
+
 # Rules audit — Lantern & Key v2.0
 
 This document records the intended tabletop rules baseline, corrections since v1.3 and the known boundaries of the learning simulation. Reference ruleset: **SRD 5.2.1**, corresponding to the 2024 fifth-edition revision, not SRD 5.1 (2014).
