@@ -103,3 +103,39 @@ test('Combat explanation for level-2 Second Wind uses the correct level bonus',(
  game.act('bonus:secondWind');
  assert.match(game.app.innerHTML,/Second Wind: 1d10 \+ 2 =/);
 });
+
+// v2.3.2 regression: Chapter 3 choice must grant a tangible inventory item.
+test('Keeping the lantern immediately adds The Last Lantern to the Pack',()=>{
+ const game=simulateGame({...base,stage:'reveal',ending:null,flags:{key:true},inventory:{rope:1,rations:2,torch:1,smoke:1}});
+ game.act('take');
+ assert.equal(game.read().ending,'take');
+ assert.equal(game.read().inventory.lantern,1);
+ game.modal('inventory');
+ assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+});
+test('Existing saves that already kept the lantern gain it automatically',()=>{
+ const oldSave={...base,stage:'forest',ending:'take',inventory:{rope:1,rations:2,torch:1,smoke:1}};
+ const game=simulateGame(oldSave);
+ game.modal('inventory');
+ assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+ // Once any ordinary action saves the upgraded data, the migration persists.
+ game.act('backStory');game.act('c:camp');
+ assert.equal(game.read().inventory.lantern,1);
+});
+test('Restoring or returning the lantern never creates an inventory copy',()=>{
+ for(const action of ['restore','return']){
+  const game=simulateGame({...base,stage:'reveal',ending:null,inventory:{rope:1,rations:2,torch:1,smoke:1}});
+  game.act(action);
+  assert.equal(game.read().inventory.lantern,0);
+  game.modal('inventory');
+  assert.doesNotMatch(game.app.innerHTML,/The Last Lantern ×1/);
+ }
+});
+test('An imported older save with a keep decision repairs the lantern item',async()=>{
+ const game=simulateGame({...base,stage:'forest',ending:null});
+ const oldSave={...base,stage:'forest',ending:'take',inventory:{rope:1,rations:2,torch:1,smoke:1}};
+ game.importFile({size:500,text:async()=>JSON.stringify(oldSave)});
+ await new Promise(setImmediate);await new Promise(setImmediate);
+ assert.equal(game.read().inventory.lantern,1);
+ game.modal('inventory');assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+});

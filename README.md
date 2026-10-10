@@ -1,4 +1,4 @@
-# Lantern & Key — Complete learning campaign (v2.3.1)
+# Lantern & Key — Complete learning campaign (v2.3.2)
 
 **A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
 
@@ -31,6 +31,12 @@ For local test runs with Node 22+: `node --test tests-core.cjs` and `node --chec
 **Limitations:** This remains a guided 8-chapter educational simulator, not a full virtual tabletop or AI Dungeon Master. The bridge has a small tutorial map and simplified enemy tactics. Automated coverage exercises the shared rules and import safety, with additional manual browser walkthroughs, but does not exhaustively verify all possible story/state combinations or every device's PWA caching.
 
 ---
+
+## v2.3.2 — Lantern inventory correction
+
+When you choose **Keep the mysterious lantern** in Chapter 3, **The Last Lantern** now appears as a unique, nonconsumable quest item in the **Pack** tab. The story in Chapters 4 and 8 acknowledges carrying it. Saves created with v2.3.1 or earlier that already record `ending: "take" are corrected on load, without restarting or importing again. This is a story artifact, not a new attack or magic ability.
+
+**Update existing GitHub Pages installations:** Replace the root-level `game.js`, `tests-core.cjs`, `sw.js`, and `README.md`. The existing deployment workflow, artwork, and other source files can stay unchanged. Export a save backup before any update as usual.
 
 ## What's new in v2.0 (included in v2.3)
 
