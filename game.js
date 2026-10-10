@@ -4,6 +4,12 @@
 (() => {
 'use strict';
 const SAVE_KEY = 'lantern-and-key.save.v1';
+const REPLAY_KEY = 'lantern-and-key.replay.v1';
+const GOOD_KEY = 'lantern-and-key.lastgood.v1';
+const GOOD_REPLAY_KEY = 'lantern-and-key.lastgood.replay.v1';
+const PREIMPORT_KEY = 'lantern-and-key.preimport.v1';
+let loadIssue = '';
+const {validateSave,shortestRoute,rangedDisadvantage,opposingRolls}=window.LanternCore;
 const CLASSES = {
   fighter: { name:'Fighter', icon:'⚔', tag:'Sturdy · straightforward', description:'An armored defender with a reliable sword and a little emergency healing.', hp:12, ac:16, stats:{STR:16,DEX:12,CON:14,INT:10,WIS:12,CHA:10}, skills:{perception:3,persuasion:0,insight:1,stealth:1,athletics:5,investigation:0,arcana:0,sleight:1}, dexSave:1, attack:5, damageDie:8, damageMod:3, weapon:'Longsword', attackName:'Longsword', spellSlots:0 },
   rogue: { name:'Rogue', icon:'◆', tag:'Clever · discreet', description:'A nimble investigator who can pick locks, hide, and strike from an advantage.', hp:10, ac:14, stats:{STR:10,DEX:16,CON:14,INT:12,WIS:14,CHA:12}, skills:{perception:4,persuasion:1,insight:2,stealth:5,athletics:0,investigation:1,arcana:1,sleight:5}, dexSave:5, attack:5, damageDie:6, damageMod:3, weapon:'Shortsword', attackName:'Shortsword', spellSlots:0 },
@@ -26,7 +32,7 @@ const GLOSSARY = [
  ['Roleplaying','You can say what your character tries to do, not only choose from a menu. This first version offers curated choices; a human DM could adjudicate almost anything.']
 ];
 const DEFAULT_NAME = {fighter:'Rowan',rogue:'Ash',wizard:'Lyra'};
-const TITLES = {tavern:'The Forgotten Tavern',tavernHub:'A Question of Trust',stranger:'The Hooded Traveler',keeper:'The Tavern Keeper',door:'The Locked Door',passage:'Beneath the Floorboards',passageChoice:'The Pressure Plates',vault:'The Chamber of Echoes',vaultAlert:'The Warden Stirs',combat:'The Echo Warden',reveal:'The Last Lantern',ending:'The Road Ahead',defeat:'A Temporary Setback',forest:'A Night in Blackwood',camp:'The Woodland Camp',trail:'Into the Trees',crossing:'The Broken Crossing',crossingBattle:'The Bridge Skirmish',crossingAfter:'The Other Bank',village:'Briar Hollow',market:'The Market Square',witness:'The Miller’s Testimony',council:'The Council Meeting',trial:'The Arcane Trial',archive:'The Spell Archive',altar:'The Trial of Focus',ascent:'The Beacon Road',levelup:'Becoming an Adventurer',epilogue:'Beyond the Lantern'};
+const TITLES = {tavern:'The Forgotten Tavern',tavernHub:'A Question of Trust',stranger:'The Hooded Traveler',keeper:'The Tavern Keeper',door:'The Locked Door',passage:'Beneath the Floorboards',passageChoice:'The Pressure Plates',vault:'The Chamber of Echoes',vaultAlert:'The Warden Stirs',combat:'The Echo Warden',reveal:'The Last Lantern',ending:'The Road Ahead',defeat:'A Temporary Setback',forest:'A Night in Blackwood',camp:'The Woodland Camp',trail:'Into the Trees',crossing:'The Broken Crossing',crossingBattle:'The Bridge Skirmish',crossingAfter:'The Other Bank',village:'Briar Hollow',market:'The Market Square',witness:'The Miller’s Testimony',council:'The Council Meeting',trial:'The Arcane Trial',archive:'The Spell Archive',altar:'The Trial of Focus',ascent:'The Beacon Road',levelup:'Becoming an Adventurer',epilogue:'Beyond the Lantern',beaconTest:'The Beacon Test'};
 let s;
 let modal = null;
 let updateWorker = null;
@@ -97,9 +103,29 @@ const esc = value => String(value??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<
 const hero = () => CLASSES[s.classId] || CLASSES.fighter;
 const maxHp = () => hero().hp + ((s.level||1)-1)*({fighter:8,rogue:7,wizard:5}[s.classId]||0);
 const fmt = text => esc(text).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-function load() { try { const saved=JSON.parse(localStorage.getItem(SAVE_KEY)); if(saved?.version===1 && Object.hasOwn(CLASSES,saved.classId) && typeof saved.stage==='string' && TITLES[saved.stage] && saved.flags && typeof saved.flags==='object' && Array.isArray(saved.journal)) return upgradeSave(saved); }catch(e){console.warn('Save fallback',e);} return initialSave(); }
-function persist() { try { localStorage.setItem(SAVE_KEY,JSON.stringify(s)); } catch(e) { console.warn('Local save unavailable',e); } }
-function commit(scroll=true) { persist(); render(); if(scroll) window.scrollTo({top:0,behavior:'instant'}); }
+function load(){
+ try{
+  const replay=localStorage.getItem(REPLAY_KEY),main=localStorage.getItem(SAVE_KEY);
+  const raw=replay||main;if(!raw)return initialSave();
+  const saved=upgradeSave(validateSave(JSON.parse(raw)));
+  if(replay)saved.replay=saved.replay||{chapter:1};
+  return saved;
+ }catch(error){loadIssue=error.message||'The saved game could not be opened.';console.error('Save recovery required:',error);return initialSave();}
+}
+function persist(){
+ try{
+  const key=s.replay?REPLAY_KEY:SAVE_KEY;
+  const raw=JSON.stringify(s);
+  localStorage.setItem(s.replay?GOOD_REPLAY_KEY:GOOD_KEY,raw);
+  localStorage.setItem(key,raw);
+ }catch(e){console.warn('Local save unavailable',e);}
+}
+function commit(scroll=true){persist();render();if(scroll)window.scrollTo({top:0,behavior:'instant'});}
+function recoveryView(){return `<div class="recovery-veil" role="alertdialog" aria-modal="true" aria-label="Save recovery"><section class="recovery-card"><h2>We couldn't open your save safely</h2><p>${esc(loadIssue)}</p><p>Your existing data has <strong>not</strong> been overwritten. Export it for safekeeping, restore the last good autosave, or start fresh.</p><button class="primary" data-act="recover:backup">Restore last good save</button><button class="secondary" data-act="recover:export">Download damaged save</button><button class="secondary" data-act="recover:reset">Start a new adventure</button></section></div>`;}
+function restoreRecovery(){try{const backup=localStorage.getItem(localStorage.getItem(REPLAY_KEY)?GOOD_REPLAY_KEY:GOOD_KEY)||localStorage.getItem(GOOD_KEY);if(!backup)throw Error('No valid automatic backup was found.');const normalized=upgradeSave(validateSave(JSON.parse(backup)));s=normalized;localStorage.removeItem(REPLAY_KEY);loadIssue='';modal=null;commit();}catch(err){alert('Recovery failed: '+err.message);}}
+function rawSaveDownload(raw,name){const blob=new Blob([raw],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);}
+function restorePreImport(){try{const raw=localStorage.getItem(PREIMPORT_KEY);if(!raw)throw Error('There is no pre-import backup.');const previous=upgradeSave(validateSave(JSON.parse(raw)));if(!confirm('Restore the save from before your last import?'))return; s=previous;localStorage.removeItem(REPLAY_KEY);modal=null;commit();}catch(err){alert('Restore failed: '+err.message);}}
+
 function record(text,kind='story') { s.journal.push({text,kind,time:new Date().toISOString()}); if(s.journal.length>120) s.journal=s.journal.slice(-120); }
 // Every story decision resolves into a serialisable pause screen; no new scene leaks
 // until the player explicitly presses Continue. Existing v1 save files still load.
@@ -112,7 +138,7 @@ function outcome(title,body,success=null,roll=null) {
  if(s.classId) trackStage();
 }
 function continueStory() {
- if(!s.storyResult)return;
+ if(!s.storyResult||s.restSession)return;
  s.storyResult=null;
  s.outcome=null; // Don't repeat the previous result above the newly unveiled story.
  s.actionCue=null;
@@ -419,7 +445,7 @@ function renderStoryResult() {
     ${roll?`<div class="story-pause-dice"><span>${esc(roll.name)}</span><strong>${roll.mode!=='normal'?`${roll.die1} / ${roll.die2} → ${roll.die}`:`${roll.die}`} ${signed(roll.modifier)}${roll.tacticalMind?` + Tactical Mind ${roll.tacticalMind}`:''} = ${roll.total}</strong><small>Target DC ${roll.dc}${roll.mode!=='normal'?` · ${roll.mode}`:''}</small></div>`:''}
     ${hpChange?`<div class="story-pause-hp"><span>♥ YOUR HP</span><strong>${r.hpBefore} → ${r.hpAfter} / ${maxHp()}</strong><b class="${hpChange<0?'hurt':'heal'}">${hpChange>0?'+':''}${hpChange} HP</b></div>`:''}
    </div>
-   <button class="primary story-pause-next" data-act="continueStory">${s.stage==='ending'?'See your adventure ending':s.stage==='defeat'?'See what happens next':s.stage==='combat'?'Continue to combat':'Continue the story'} <span>→</span></button>
+   ${s.restSession?`<div class="rest-controls"><strong>Short Rest · ${s.hitDice} Hit Dice left</strong><p>HP ${s.hp}/${maxHp()}. ${s.restSession.spent} dice spent this rest.</p><button class="secondary" data-act="rest:spend" ${s.hitDice<=0||s.hp>=maxHp()?'disabled':''}>⚄ Spend another Hit Die</button><button class="secondary" data-act="rest:finish">Finish resting →</button></div>`:''}<button class="primary story-pause-next" data-act="continueStory" ${s.restSession?'disabled':''}>${s.stage==='ending'?'See your adventure ending':s.stage==='defeat'?'See what happens next':s.stage==='combat'?'Continue to combat':'Continue the story'} <span>→</span></button>
    <p class="story-pause-footnote">The next scene is paused until you continue.</p>
   </div>
  </section>`;
@@ -428,6 +454,7 @@ function renderScene() {
  if(s.mindOffer)return renderMindOffer();
  if(s.storyResult)return renderStoryResult();
  if(s.stage==='crossingBattle')return renderTactics();
+ if(s.finalTest?.active)return renderBeaconTest();
 
  const v=scene();const isSpecial=['ending','defeat'].includes(s.stage);
  if(isSpecial)return renderEnding();
@@ -454,7 +481,7 @@ function renderModal(){if(!modal)return '';let title,content;
  else if(modal==='learn'){title='Learning journal';content=renderLearning();}
  else if(modal==='inventory'){title='Equipment & inventory';content=renderInventory();}
  else if(modal==='practice'){title='Practice arena';content=renderPractice();}
- else if(modal==='settings'){title='Save & settings';content=`<p class="modal-lead">Your progress is saved automatically in this browser. No account or server is involved.</p>${installPanel()}<div class="mode-setting"><strong>Teaching mode</strong><p>Guided shows rules and target numbers before choices. Tabletop hides advance hints, but explains dice results afterward.</p><button class="${s.mode==='guided'?'chosen-mode':''}" data-act="mode:guided">Guided</button><button class="${s.mode==='tabletop'?'chosen-mode':''}" data-act="mode:tabletop">Tabletop</button></div><div class="settings-actions"><button data-act="export">↓ Export save as JSON</button><button data-act="import">↑ Import save from JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden/><button class="danger" data-act="restart">↻ Erase save and start over</button></div><div class="attribution"><strong>Offline play:</strong> After your first successful visit via HTTPS, this app can work offline on supported browsers. Updates are never applied while you are editing or playing without choosing to reload.<br/><br/>Rules adapted from <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">SRD 5.2.1</a> (Wizards of the Coast, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>); original adventure and code. Not an official D&D product.</div>`;}
+ else if(modal==='settings'){title='Save & settings';content=`<p class="modal-lead">Your progress is saved automatically in this browser. No account or server is involved.</p>${installPanel()}<div class="mode-setting"><strong>Teaching mode</strong><p>Guided shows rules and target numbers before choices. Tabletop hides advance hints, but explains dice results afterward.</p><button class="${s.mode==='guided'?'chosen-mode':''}" data-act="mode:guided">Guided</button><button class="${s.mode==='tabletop'?'chosen-mode':''}" data-act="mode:tabletop">Tabletop</button></div><div class="settings-actions"><button data-act="export">↓ Export save as JSON</button><button data-act="import">↑ Import save from JSON</button><button data-act="restorePreImport" ${localStorage.getItem(PREIMPORT_KEY)?'':'disabled'}>↶ Restore pre-import backup</button><input id="importFile" type="file" accept=".json,application/json" hidden/><button class="danger" data-act="restart">↻ Erase save and start over</button></div><div class="attribution"><strong>Offline play:</strong> After your first successful visit via HTTPS, this app can work offline on supported browsers. Updates are never applied while you are editing or playing without choosing to reload.<br/><br/>Rules adapted from <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">SRD 5.2.1</a> (Wizards of the Coast, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>); original adventure and code. Not an official D&D product.</div>`;}
  return `<div class="modal-backdrop" data-act="closeModalBackdrop"><div role="${s.classId&&s.stage!=='welcome'?'region':'dialog'}" ${s.classId&&s.stage!=='welcome'?'':'aria-modal="true"'} aria-label="${esc(title)}" class="modal"><div class="modal-heading"><div><span class="small-caps">LANTERN & KEY</span><h2>${esc(title)}</h2></div><button class="modal-back-button" data-act="closeModal" aria-label="${s.stage==='welcome'?'Close dialog':'Return to the story'}">← <span>${s.stage==='welcome'?'Close':'Story'}</span></button></div><div class="modal-content">${content}</div></div></div>`;}
 const ADVENTURE_NAV = [
  ['story','◈','Story'], ['sheet','♜','Character'], ['inventory','♢','Pack'],
@@ -467,16 +494,35 @@ function renderAdventureNav(){
 }
 function render(){
  const playing=Boolean(s.classId&&s.stage!=='welcome');
- app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v2.2</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
+ app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v2.3</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
 }
-function restart(){if(!confirm('Start a new adventure? Your current progress will be replaced. Export a backup first if you want to keep it.'))return;s=initialSave();modal=null;commit();}
-function exportSave(){const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lantern-and-key-save.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-async function importSave(file){if(!file)return;try{const obj=JSON.parse(await file.text());if(!obj || obj.version!==1 || !Object.prototype.hasOwnProperty.call(CLASSES,obj.classId) || !TITLES[obj.stage] || !Array.isArray(obj.journal) || !Array.isArray(obj.checks) || !obj.flags || typeof obj.flags!=='object'||!Number.isFinite(obj.hp)||obj.journal.length>1000)throw Error('Not a compatible Lantern & Key v1 save.');if(!confirm('Replace current progress with the imported save?'))return;s=upgradeSave({...obj,heroName:String(obj.heroName||'Adventurer').slice(0,28),hp:clamp(obj.hp,0,CLASSES[obj.classId].hp+8),potions:clamp(Number(obj.potions)||0,0,99),slots:clamp(Number(obj.slots)||0,0,3),journal:obj.journal.slice(-120),pending:obj.pending&&CHECKS[obj.pending.key]?obj.pending:null});modal=null;commit();}catch(e){alert('Import failed: '+e.message);}}
+function restart(){if(s.replay){if(!confirm('Discard this replay and return to your original campaign?'))return;return returnToMain();}if(!confirm('Start a new adventure? Your current progress will be replaced. Export a backup first if you want to keep it.'))return;s=initialSave();modal=null;commit();}
+function returnToMain(){try{const main=localStorage.getItem(SAVE_KEY);if(!main)throw Error('No main campaign save found.');const original=upgradeSave(validateSave(JSON.parse(main)));localStorage.removeItem(REPLAY_KEY);s=original;modal=null;commit();}catch(e){alert('Unable to restore the main campaign: '+e.message);}}
+
+function exportSave(){rawSaveDownload(JSON.stringify(s,null,2),s.replay?'lantern-and-key-replay.json':'lantern-and-key-save.json');}
+async function importSave(file){
+ if(!file)return;
+ try{
+  if(file.size>1500000)throw Error('Save exceeds the 1.5 MB import limit.');
+  const obj=validateSave(JSON.parse(await file.text()));
+  const incoming=upgradeSave(obj);
+  if(!confirm('Replace the current campaign save with this imported game? The existing save will be backed up first.'))return;
+  try{localStorage.setItem(PREIMPORT_KEY,JSON.stringify(s));}catch(err){throw Error('Could not create a pre-import backup. Free browser storage and retry.');}
+  s=incoming;delete s.replay;localStorage.removeItem(REPLAY_KEY);loadIssue='';modal=null;commit();
+ }catch(e){alert('Import rejected safely: '+e.message);}
+}
+
 app.addEventListener('click',event=>{
  const button=event.target.closest('[data-act],[data-modal]');if(!button)return;
  const action=button.dataset.act;
  if(button.dataset.modal){modal=button.dataset.modal;render();return;}
  if(!action)return;
+ if(action==='recover:backup'){restoreRecovery();return;}
+ if(action==='recover:export'){rawSaveDownload(localStorage.getItem(REPLAY_KEY)||localStorage.getItem(SAVE_KEY)||'{}','lantern-and-key-damaged-save.json');return;}
+ if(action==='recover:reset'){if(confirm('Discard the damaged local save and start over? Download it first if needed.')){localStorage.removeItem(SAVE_KEY);localStorage.removeItem(REPLAY_KEY);loadIssue='';s=initialSave();commit();}return;}
+ if(loadIssue)return;
+ if(action==='returnMain'){returnToMain();return;}
+ if(action==='restorePreImport'){restorePreImport();return;}
  if(action==='closeModal'){modal=null;render();return;}
  if(action==='closeModalBackdrop'){if(event.target===button){modal=null;render();}return;}
  if(action==='begin')begin();
@@ -510,8 +556,8 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
 }
 // v2 guided campaign: all chapters share the legacy save key and paused result UI.
 const CHAPTER_NAMES=['Exploration & checks','Hazards & saving throws','Dialogue & combat','Resting & recovery','Movement & positioning','Roleplaying & evidence','Magic & concentration','Leveling up'];
-const CAMPAIGN_CHAPTER={forest:4,camp:4,trail:4,crossing:5,crossingBattle:5,crossingAfter:5,village:6,market:6,witness:6,council:6,trial:7,archive:7,altar:7,ascent:8,levelup:8,epilogue:8};
-const CAMPAIGN_ART={forest:'forest',camp:'forest',trail:'forest',crossing:'crossing',crossingBattle:'crossing',crossingAfter:'crossing',village:'village',market:'village',witness:'village',council:'village',trial:'arcane',archive:'arcane',altar:'arcane',ascent:'summit',levelup:'summit',epilogue:'summit'};
+const CAMPAIGN_CHAPTER={forest:4,camp:4,trail:4,crossing:5,crossingBattle:5,crossingAfter:5,village:6,market:6,witness:6,council:6,trial:7,archive:7,altar:7,ascent:8,levelup:8,beaconTest:8,epilogue:8};
+const CAMPAIGN_ART={forest:'forest',camp:'forest',trail:'forest',crossing:'crossing',crossingBattle:'crossing',crossingAfter:'crossing',village:'village',market:'village',witness:'village',council:'village',trial:'arcane',archive:'arcane',altar:'arcane',ascent:'summit',levelup:'summit',beaconTest:'summit',epilogue:'summit'};
 const CHAPTER_START={1:'tavern',2:'passage',3:'vault',4:'forest',5:'crossing',6:'village',7:'trial',8:'ascent'};
 const LESSONS={
  checks:['Ability checks','A skill check is a d20 plus the applicable ability and proficiency modifier, compared against a DM-set DC. Natural 20s do not automatically succeed on ordinary ability checks.'],
@@ -533,7 +579,28 @@ const LESSONS={
  level:['Level 2 progression','On reaching level 2, each class gains more HP and class-specific abilities: Fighter Action Surge/Tactical Mind; Rogue Cunning Action; Wizard Scholar Expertise.'],
  inventory:['Inventory & equipment','Objects can offer alternatives to dice checks. Drinking a Potion of Healing is a Bonus Action in the 2024 rules; you can also use it outside combat.']
 };
-function initialSave(){return {version:1,stage:'welcome',flags:{},journal:[],checks:[],heroName:'',classId:null,hp:null,potions:1,slots:0,outcome:null,combat:null,ending:null,level:1,hitDice:1,secondWind:2,arcaneRecovery:false,actionSurge:1,mode:'guided',inventory:{rope:1,rations:2,torch:1,smoke:1},equipped:'primary',learned:{},checkpoints:{},unlocked:1,practice:null,tactics:null,storyResult:null};}
+
+const QUIZZES={
+ checks:['A skill check total equals its DC. What happens?','It succeeds','It fails',0],
+ advantage:['You have advantage and disadvantage together. How many d20s do you roll?','One','Three',0],
+ saves:['A spell asks for a Dexterity saving throw. Who rolls?','The affected target','The caster rolls against AC',0],
+ combat:['Which normally uses your Action?','Dodge','Second Wind',0],
+ sneak:['Does a Rogue always need to Hide to deal Sneak Attack?','No; other qualifying circumstances exist','Yes, always',0],
+ rests:['Can you decide to spend another Hit Die after your first Short Rest roll?','Yes','No',0],
+ resources:['Does Fire Bolt consume a level-1 spell slot?','No, it is a cantrip','Yes',0],
+ movement:['How much movement does entering a difficult-terrain grid square cost?','10 feet','5 feet',0],
+ cover:['How much AC does Half Cover usually add?','+2','+5',0],
+ reactions:['What can trigger an opportunity attack?','Leaving an enemy’s reach without Disengaging','Moving closer to an enemy',0],
+ social:['Can evidence change how an NPC reacts to persuasion?','Yes','Never',0],
+ evidence:['Can an investigation succeed without a skill check?','Yes, some clues are simply discovered','No, every clue needs a roll',0],
+ spells:['Who rolls when a spell requires its target to make a saving throw?','Target','Spellcaster',0],
+ slots:['Which can be cast without spending a spell slot?','Cantrip','Magic Missile',0],
+ concentration:['After taking 3 damage, what is the usual concentration save DC?','10','3',0],
+ conditions:['Is being Prone identical to being Restrained?','No, each condition has different effects','Yes',0],
+ level:['Can a level-2 Fighter Action Surge be used for a Magic action?','No','Yes',0],
+ inventory:['When can a 2024 Potion of Healing be drunk in combat?','As a Bonus Action','Only after combat',0]
+};
+function initialSave(){return {version:1,stage:'welcome',flags:{},journal:[],checks:[],heroName:'',classId:null,hp:null,potions:1,slots:0,outcome:null,combat:null,ending:null,replay:null,mastery:{},quizFeedback:null,finalTest:null,restSession:null,level:1,hitDice:1,secondWind:2,arcaneRecovery:false,actionSurge:1,mode:'guided',inventory:{rope:1,rations:2,torch:1,smoke:1},equipped:'primary',learned:{},checkpoints:{},unlocked:1,practice:null,tactics:null,storyResult:null};}
 function upgradeSave(raw){
  const d=initialSave(),x={...d,...raw};
  x.flags=(raw.flags && typeof raw.flags==='object' && !Array.isArray(raw.flags))?raw.flags:{};
@@ -542,14 +609,14 @@ function upgradeSave(raw){
  x.secondWind=clamp(Number.isFinite(raw.secondWind)?raw.secondWind:2,0,2);
  x.inventory={...d.inventory,...(raw.inventory||{})};
  for(const item of Object.keys(x.inventory))x.inventory[item]=clamp(Number(x.inventory[item])||0,0,20);
- x.learned=(raw.learned&&typeof raw.learned==='object')?raw.learned:{};
- x.checkpoints=(raw.checkpoints&&typeof raw.checkpoints==='object')?raw.checkpoints:{};
+ x.learned=(raw.learned&&typeof raw.learned==='object'&&!Array.isArray(raw.learned))?raw.learned:{};x.mastery=(raw.mastery&&typeof raw.mastery==='object'&&!Array.isArray(raw.mastery))?raw.mastery:{};x.replay=(raw.replay&&typeof raw.replay==='object'&&!Array.isArray(raw.replay))?raw.replay:null;
+ x.checkpoints=(raw.checkpoints&&typeof raw.checkpoints==='object'&&!Array.isArray(raw.checkpoints))?raw.checkpoints:{};
  x.unlocked=clamp(Number(raw.unlocked)|| (CAMPAIGN_CHAPTER[x.stage]||chapter(x.stage)),1,8);
- x.journal=Array.isArray(raw.journal)?raw.journal.slice(-120):[];
+ x.journal=Array.isArray(raw.journal)?raw.journal.slice(-120).map(e=>({text:String(e.text||'').slice(0,5000),kind:['story','roll','success','failure','combat'].includes(e.kind)?e.kind:'story',time:typeof e.time==='string'?e.time.slice(0,40):''})):[];
  x.checks=Array.isArray(raw.checks)?raw.checks.slice(-200):[];
  x.potions=clamp(Number(x.potions)||0,0,20);
  x.slots=clamp(Number(x.slots)||0,0,x.level===2?3:2);
- x.hp=Number.isFinite(raw.hp)?clamp(raw.hp,0,CLASSES[x.classId]?.hp + (x.level-1)*8||100):x.hp;
+ x.hp=Number.isFinite(raw.hp)?clamp(raw.hp,0,(CLASSES[x.classId]?.hp||0)+ (x.level-1)*({fighter:8,rogue:7,wizard:5}[x.classId]||0)):x.hp;
  x.actionCue=null;
  return x;
 }
@@ -632,7 +699,8 @@ function campaignScene(){
  case 'archive':return {chapter:7,label:'THE ARCANE TRIAL',heading:'The language of spells',text:[s.classId==='wizard'?'Your spellbook warms as it meets the archive’s light.':'Elowen lets you study a page from a borrowed spellbook. You cannot cast Wizard spells, but you can still learn how to resist them.','A record describes Fire Bolt (a cantrip with a spell attack) and Burning Hands (a level-1 spell with a Dexterity save).','A glowing bowl demonstrates Detect Magic: a concentration spell with a limited duration.'],lesson:'Wizards prepare spells and can cast cantrips without spending slots. Detect Magic can also be cast as a ritual if prepared as an eligible Wizard ritual from a spellbook, adding 10 minutes.',choices:[q('c:arcana','Decode a runic inscription','Arcana DC 13','◎'),q('c:toAltar','Enter the trial circle','Demonstrate the mechanics','✦')]};
  case 'altar':return {chapter:7,label:'THE ARCANE TRIAL',heading:'A choice of magic',text:['A hovering practice target waits inside the circle. Elowen gestures, showing the difference between an attack roll and a forced saving throw.',s.flags.magicAttack!==undefined?'You have already seen a spell attack in action.':'The target bears a painted AC value of 12.',s.flags.magicSave!==undefined?'You have also tested a spell with a saving throw.':'The tutor can demonstrate Burning Hands and ask the target to resist.',s.flags.focusHeld!==undefined?'You understand how damage can break concentration.':'A pulsing ward is ready to test concentration.'],lesson:'Concentration breaks when you cast a different concentration spell, become incapacitated, or fail a Constitution saving throw after taking damage (DC at least 10).',choices:[q('c:spellAttack',s.classId==='wizard'?'Cast Fire Bolt at the target':'Watch a Fire Bolt attack roll','Spell attack against AC 12 · free cantrip','✦'),q('c:spellSave',s.classId==='wizard'?'Cast Burning Hands':'Observe Burning Hands and a Dexterity save',s.classId==='wizard'?'3d6 fire · half on successful save · 1 slot':'Target makes a saving throw versus spell DC','✧',s.classId==='wizard'&&s.slots<1),q('c:concentrate','Maintain a concentration effect','Take a small shock and make a CON save','◇'),q('c:toAscent','Finish the trial and follow the beacon road','Continue to Chapter 8','↝')]};
  case 'ascent':return {chapter:8,label:'BECOMING AN ADVENTURER',heading:'The road above the clouds',text:['The path winds toward a mountain beacon. Your travels have changed you. You can now advance to level 2.',`You have faced mysteries, tactical choices, and magic as a ${hero().name}.`,`Elowen's words echo: “Growth means new possibilities, not just stronger numbers.”`],lesson:'When leveling up, HP maximum and class features change. Different classes develop in very different ways.',choices:[q('c:toLevel','Level up to 2','Unlock your next class features','✦',s.level===2),s.level===2?q('c:toFinal','Approach the mountain beacon','Apply what you learned','↝'):null].filter(Boolean)};
- case 'levelup':return {chapter:8,label:'BECOMING AN ADVENTURER',heading:'A new kind of adventurer',text:[`You are now a level ${s.level} ${hero().name}.`,s.classId==='fighter'?'You can use Action Surge to take an extra action (not the Magic action) once per Short or Long Rest. Tactical Mind can add 1d10 to a failed ability check by spending Second Wind.':s.classId==='rogue'?'Your Cunning Action lets you Dash, Disengage or Hide as a Bonus Action. Sneak Attack stays at 1d6 until level 3.':'Scholar grants Expertise in one known scholarly skill. Choose Arcana or Investigation to double your proficiency bonus for that skill.',`You have ${s.hp}/${maxHp()} HP, and ${s.hitDice} remaining Hit Point Dice.`],lesson:'Level 2 does not mean every class gets another attack. Features have specific triggers and resource limitations.',choices:[s.classId==='wizard'&&!s.scholarSkill?q('c:scholar:arcana','Choose Arcana Expertise','Gain an extra +2 to Arcana checks','✦'):null,s.classId==='wizard'&&!s.scholarSkill?q('c:scholar:investigation','Choose Investigation Expertise','Gain an extra +2 to Investigation checks','◎'):null,(s.classId!=='wizard'||s.scholarSkill)?q('c:toFinal','Continue to the mountain beacon','Use your new knowledge','↝'):null].filter(Boolean)};
+ case 'levelup':return {chapter:8,label:'BECOMING AN ADVENTURER',heading:'A new kind of adventurer',text:[`You are now a level ${s.level} ${hero().name}.`,s.classId==='fighter'?'You can use Action Surge to take an extra action (not the Magic action) once per Short or Long Rest. Tactical Mind can add 1d10 to a failed ability check by spending Second Wind.':s.classId==='rogue'?'Your Cunning Action lets you Dash, Disengage or Hide as a Bonus Action. Sneak Attack stays at 1d6 until level 3.':'Scholar grants Expertise in one known scholarly skill. Choose Arcana or Investigation to double your proficiency bonus for that skill.',`You have ${s.hp}/${maxHp()} HP, and ${s.hitDice} remaining Hit Point Dice.`],lesson:'Level 2 does not mean every class gets another attack. Features have specific triggers and resource limitations.',choices:[s.classId==='wizard'&&!s.scholarSkill?q('c:scholar:arcana','Choose Arcana Expertise','Gain an extra +2 to Arcana checks','✦'):null,s.classId==='wizard'&&!s.scholarSkill?q('c:scholar:investigation','Choose Investigation Expertise','Gain an extra +2 to Investigation checks','◎'):null,(s.classId!=='wizard'||s.scholarSkill)?(s.flags.beaconPassed?q('c:toFinal','Approach the final beacon','Your training is complete','↝'):q('c:beaconTest','Prove your new abilities at the beacon','A final encounter applies your level-2 features','⚔')):null].filter(Boolean)};
+ case 'beaconTest':return {chapter:8,label:'THE BEACON TEST',heading:'A living lesson',text:['An echo made of starlight steps between you and the final beacon. “The trial is not to destroy me,” it says. “Demonstrate how your new training changes your choices.”','You can face the echo in a brief training duel. Its blows are nonlethal; your existing inventory and class resources remain relevant.'],lesson:'Try your level-2 ability in a real story challenge. Fighter: Action Surge. Rogue: Bonus-Action Hide. Wizard: Scholar expertise helps in the alternate, noncombat solution.',choices:[q('c:beginBeacon','Challenge the echo to a duel','Use your abilities in combat','⚔'),q('c:beaconInsight','Study the echo and negotiate','Use Insight or scholarly Expertise','✦')]};
  case 'epilogue':return {chapter:8,label:'BEYOND THE LANTERN',heading:'A story you can bring to the table',text:['The mountain beacon flares to life as the valley answers with hundreds of tiny lanterns.',s.flags.finalInsight?'Your careful reading of the guardian allowed you to avoid another unnecessary fight.':'You chose to act even without perfect certainty. The outcome belongs to your character.',`You leave Blackwood as ${esc(s.heroName)}, a level ${s.level} ${hero().name}, knowing enough to join a real tabletop group.`],lesson:'At the table, your next step is to tell the DM what your character attempts. The DM responds with consequences, and the shared story continues.',choices:[q('c:review','Review your learning journal','See all the rules you have encountered','✦'),q('c:practice','Open the practice arena','Train checks and combat safely','⚔'),q('c:chapters','Replay a chapter checkpoint','Explore a different path','↶')]};
  default: return {chapter:8,label:'THE ADVENTURE',heading:'Continue',text:[],choices:[]};
  }
@@ -652,13 +720,12 @@ function campaignAct(key){
  case 'c:forestPotion':case 'c:campPotion':case 'c:restRoad':if(usablePotion())commit();break;
  case 'c:shortRest':{
   if(s.hp<=0)return true;
-  let before=s.hp,n=0,die=0,con=Math.floor((hero().stats.CON-10)/2);
-  if(s.hitDice>0&&s.hp<maxHp()) {die=rand({fighter:10,rogue:8,wizard:6}[s.classId]);n=Math.max(1,die+con);s.hp=clamp(s.hp+n,0,maxHp());s.hitDice--;}
+  s.restSession={spent:0,total:0};
   if(s.classId==='fighter')s.secondWind=Math.min(2,s.secondWind+1);
   if(s.classId==='fighter'&&s.level>=2)s.actionSurge=1;
   if(s.classId==='wizard'&&!s.arcaneRecovery&&s.slots<(s.level===2?3:2)){s.slots++;s.arcaneRecovery=true;}
   learn('rests');learn('resources');
-  outcome('One hour of rest',die?`You spend one Hit Point Die: d${{fighter:10,rogue:8,wizard:6}[s.classId]} (${die}) + CON (${con}) = ${n}, HP ${before} → ${s.hp}. Available Short Rest class features recover as appropriate.`:'You recover your breath. You do not spend a Hit Point Die; suitable Short Rest features may recharge.');commit();break;
+  outcome('Your short rest begins','You rest for one hour. You can now spend Hit Point Dice one at a time, deciding after each roll whether to spend another. Short Rest class features have recovered as appropriate.');commit();break;
  }
  case 'c:longRest':{
   if(s.hp<=0)return true;
@@ -671,7 +738,7 @@ function campaignAct(key){
    const before=s.hp;s.hp=maxHp();s.hitDice=s.level;s.secondWind=2;s.arcaneRecovery=false;s.actionSurge=1;
    if(s.classId==='wizard')s.slots=s.level===2?3:2;
    s.flags.longRested=true;s.flags.longInterrupted=false;
-   outcome('A full night of safety',`Eight hours later, you wake with ${s.hp}/${maxHp()} HP (previously ${before}). All Hit Point Dice, your Wizard slots, and Long Rest class resources are restored.`,true);
+   s.restSession=null;outcome('A full night of safety',`Eight hours later, you wake with ${s.hp}/${maxHp()} HP (previously ${before}). All Hit Point Dice, your Wizard slots, and Long Rest class resources are restored.`,true);
   }commit();break;
  }
  case 'c:toTrail':advance('trail','The grey light of morning','At first light, you gather your things and follow the winding road.');break;
@@ -720,7 +787,18 @@ function campaignAct(key){
   learn('level');advance('levelup','You reach level 2!',`Your maximum HP increases by ${extra}. You now have ${s.hp}/${maxHp()} HP. Your new ${hero().name} feature is explained in the next scene.`);break;
  }
  case 'c:scholar:arcana':case 'c:scholar:investigation':if(s.classId==='wizard'&&!s.scholarSkill){s.scholarSkill=key.split(':').pop();outcome('Scholar expertise gained',`You choose ${s.scholarSkill}: your proficiency is doubled for that skill, adding a further +2 at level 2.`);commit();}break;
+ case 'c:beaconTest':newChapter('beaconTest','A challenge at the mountain beacon','An echo blocks the last path and asks you to demonstrate what you have learned.');break;
+ case 'c:beginBeacon':beginBeaconTest();break;
+ case 'c:beaconInsight':{
+  const die=rand(20),skill=s.classId==='wizard'?(s.scholarSkill||'arcana'):'insight',bonus=skillBonus(skill),result=die+bonus;
+  learn('social');learn('level');
+  if(result>=13){s.flags.beaconPassed=true;s.flags.beaconPeace=true;outcome('The echo acknowledges your insight',`d20 ${die} ${signed(bonus)} = ${result} vs DC 13. You understand the echo seeks proof of growth, not violence. It allows you to approach the beacon.`,true);s.stage='levelup';}
+  else outcome('A question remains',`d20 ${die} ${signed(bonus)} = ${result} vs DC 13. Your explanation isn't quite enough. You can try the training duel instead.`,false);
+  commit();break;
+ }
  case 'c:toFinal':{
+  if(!s.flags.beaconPassed){outcome('One test remains','Complete the echo’s level-2 challenge before approaching the beacon.',false);commit();break;}
+
   s.flags.finalSeen=true;campaignCheck('c:final','Study the intentions of the final guardian');break;
  }
  case 'c:review':modal='learn';render();break;
@@ -734,18 +812,25 @@ function renderMindOffer(){const m=s.mindOffer;if(!m)return '';return `<section 
 function resolveTacticalMind(use){const m=s.mindOffer;if(!m)return;let r=m.roll;if(use){const d=rand(10);r={...r,total:r.total+d,success:r.total+d>=r.dc,tacticalMind:d};if(r.success)s.secondWind--;record(`Tactical Mind: d10 ${d}; new total ${r.total} vs DC ${r.dc}. ${r.success?'Second Wind use spent.':'Use preserved after failure.'}`,'roll');}s.mindOffer=null;s.checks[s.checks.length-1]=r;if(!campaignHandleCheck(m.key,r.success,r))handleCheckResult(m.key,r.success,r);commit();}
 function renderChapters(){
  const starts=[{n:1,name:'The Forgotten Tavern',desc:'NPCs and ability checks'},{n:2,name:'Beneath the Floorboards',desc:'Hazards and saving throws'},{n:3,name:'The Chamber of Echoes',desc:'Dialogue and early combat'},{n:4,name:'A Night in Blackwood',desc:'Resting, limited resources and recovery'},{n:5,name:'The Broken Crossing',desc:'Tactical maps, cover, opportunity attacks'},{n:6,name:'Secrets of Briar Hollow',desc:'Insight, persuasion, evidence and trust'},{n:7,name:'The Arcane Trial',desc:'Spell attacks, saves, slots and concentration'},{n:8,name:'Becoming an Adventurer',desc:'Level 2 features and final reflection'}];
- return `<p class="modal-lead">Replay a chapter from its recorded checkpoint. Restoring a checkpoint rewinds later story choices and resources. Export a JSON save first to keep the current timeline.</p><div class="chapter-list">${starts.map(({n,name,desc})=>`<div class="chapter-entry"><div><b>${String(n).padStart(2,'0')} · ${name}</b><p>${desc}</p></div>${s.checkpoints[n]?`<button data-act="checkpoint:${n}">Replay ↻</button>`:n===1?`<span>Start a new adventure to replay</span>`:`<span>${s.unlocked>=n?'Unavailable in this older save':'Locked'}</span>`}</div>`).join('')}</div>`;
+ return `<p class="modal-lead">Replay chapters in a separate save slot. Your original campaign, inventory and choices remain untouched.</p>${s.replay?`<div class="replay-banner"><b>REPLAYING CHAPTER ${s.replay.chapter}</b><p>Your main adventure is safe.</p><button class="primary" data-act="returnMain">← Return to main campaign</button></div>`:''}<div class="chapter-list">${starts.map(({n,name,desc})=>`<div class="chapter-entry"><div><b>${String(n).padStart(2,'0')} · ${name}</b><p>${desc}</p></div>${s.checkpoints[n]?`<button data-act="checkpoint:${n}">Replay ↻</button>`:n===1?`<span>Start a new adventure to replay</span>`:`<span>${s.unlocked>=n?'Unavailable in this older save':'Locked'}</span>`}</div>`).join('')}</div>`;
 }
-function renderLearning(){let count=Object.keys(s.learned||{}).filter(k=>LESSONS[k]).length;return `<p class="modal-lead">${count} of ${Object.keys(LESSONS).length} mechanics discovered. Completed lessons stay readable; others unlock as you encounter them.</p><div class="lesson-progress"><i style="width:${Math.round(100*count/Object.keys(LESSONS).length)}%"></i></div><div class="glossary">${Object.entries(LESSONS).map(([k,[title,desc]])=>`<details ${s.learned?.[k]?'':'class="lesson-locked"'}><summary>${s.learned?.[k]?'✓':'◇'} ${esc(title)}${s.learned?.[k]?'':' · not yet encountered'}</summary><p>${s.learned?.[k]?esc(desc):'Continue the campaign to unlock this lesson.'}</p></details>`).join('')}</div>`;}
+function renderLearning(){
+ const found=Object.keys(s.learned||{}).filter(k=>LESSONS[k]).length;
+ const mastered=Object.keys(s.mastery||{}).filter(k=>LESSONS[k]&&s.mastery[k]).length;
+ return `<p class="modal-lead">${found} / ${Object.keys(LESSONS).length} lessons discovered · ${mastered} demonstrated in a knowledge check. Discovering a rule isn't the same as applying it.</p><div class="lesson-progress"><i style="width:${Math.round(100*found/Object.keys(LESSONS).length)}%"></i></div><div class="glossary">${Object.entries(LESSONS).map(([k,[title,desc]])=>{
+  const unlocked=Boolean(s.learned?.[k]),q=QUIZZES[k],done=Boolean(s.mastery?.[k]);
+  const f=s.quizFeedback?.id===k?s.quizFeedback:null;
+  return `<details ${unlocked?'':'class="lesson-locked"'}><summary>${done?'★':unlocked?'✓':'◇'} ${esc(title)}${done?' · mastered':unlocked?' · try a check':' · not yet encountered'}</summary><p>${unlocked?esc(desc):'Continue the campaign to unlock this lesson.'}</p>${unlocked&&q?`<div class="lesson-quiz"><strong>CHECK YOUR UNDERSTANDING</strong><p>${esc(q[0])}</p><div class="practice-buttons"><button data-act="quiz:${k}:0">${esc(q[1])}</button><button data-act="quiz:${k}:1">${esc(q[2])}</button></div>${f?`<p role="status" class="${f.correct?'quiz-correct':'quiz-wrong'}">${f.correct?'✓ Correct — applied successfully.':'Try again. Revisit the explanation above.'}</p>`:''}</div>`:''}</details>`;}).join('')}</div>`;
+}
 const ITEM_INFO={rope:['50 ft rope','Secure a climb or make a bridge crossing safer. Rope is useful even without combat.'],rations:['Travel rations','Food for travel. In a longer campaign, the DM may track food and water during journeys.'],torch:['Torch','Illuminates darkness. Carrying light can also reveal your position.'],smoke:['Smoke pellet','A training consumable: can create visual concealment in the bridge duel. Not a standard SRD item.']};
 function renderInventory(){return `<p class="modal-lead">Your supplies carry across chapters. Healing and equipment work independently of the story dialogue.</p><div class="inventory-list"><div class="inventory-entry"><div><b>⚗ Potion of Healing</b><small>2d4+2 HP · 2024 Bonus Action · ×${s.potions}</small></div><button data-act="item:potion" ${s.potions<=0||s.hp>=maxHp()?'disabled':''}>Drink</button></div>${Object.entries(ITEM_INFO).map(([id,[name,desc]])=>`<div class="inventory-entry"><div><b>${esc(name)} ×${s.inventory[id]||0}</b><small>${esc(desc)}</small></div>${id==='smoke'?`<button data-act="item:smoke" ${s.inventory.smoke<=0||s.stage!=='crossingBattle'?'disabled':''}>Use</button>`:id==='rations'?`<button data-act="item:rations" ${!s.inventory.rations?'disabled':''}>Eat</button>`:id==='torch'?`<button data-act="item:torch">${s.flags.torchLit?'Put out':'Light'}</button>`:''}</div>`).join('')}<div class="inventory-entry"><div><b>⚔ Equipped weapon</b><small>${s.equipped==='alternate'?(s.classId==='fighter'?'Javelin':s.classId==='rogue'?'Shortbow':'Quarterstaff'):hero().weapon} · change range in bridge battles</small></div><button data-act="item:equip">Swap</button></div>${s.flags.key?'<div class="inventory-entry"><div><b>✧ Silver wolf-key</b><small>An ancient key connected with the beacon.</small></div></div>':''}</div>`;}
 function renderPractice(){
- const p=s.practice||{},isDuel=p.mode==='duel';
- return `<p class="modal-lead">Free practice does not change your adventure HP, items, slots or story decisions. Learn in a low-stakes arena.</p><div class="practice-buttons"><button data-act="practice:check">Practice a skill check</button><button data-act="practice:combat">Practice combat</button><button data-act="practice:spell">Practice spells & saves</button><button data-act="practice:reset">Reset practice</button></div>${p.text?`<div class="practice-feedback" role="status">${fmt(p.text)}</div>`:''}${isDuel?`<div class="practice-hp"><span>♥ You ${p.heroHp}/${maxHp()}</span><span>⚔ Dummy ${p.enemyHp}/12</span></div><div class="practice-buttons"><button data-act="practice:attack" ${p.heroHp<=0||p.enemyHp<=0?'disabled':''}>Attack</button><button data-act="practice:dodge" ${p.heroHp<=0||p.enemyHp<=0?'disabled':''}>Dodge</button><button data-act="practice:heal" ${p.heroHp<=0||p.enemyHp<=0?'disabled':''}>Practice healing</button>${s.level===2&&s.classId==='fighter'?`<button data-act="practice:surge" ${p.surged?'disabled':''}>Action Surge</button>`:''}${s.level===2&&s.classId==='rogue'?`<button data-act="practice:hide">Cunning Action: Hide</button>`:''}${s.classId==='wizard'?`<button data-act="practice:missile">Magic Missile</button>`:''}</div>`:''}`;
+ const p=s.practice||{},isDuel=p.mode==='duel',paused=p.phase==='result';
+ return `<p class="modal-lead">Repeat skills, spells and combat without spending adventure resources. Every action result stays visible until you continue.</p><div class="practice-buttons"><button data-act="practice:check">Practice a skill check</button><button data-act="practice:combat">Start / restart combat</button><button data-act="practice:spell">Practice spells & saves</button><button data-act="practice:reset">Clear practice</button></div>${isDuel?`<div class="practice-hp"><span>♥ You <b>${p.heroHp}/${maxHp()}</b></span><span>⚔ Training sentry <b>${p.enemyHp}/18</b></span></div>`:''}${p.text?`<div class="practice-feedback" role="status"><span class="small-caps">${paused?'ACTION RESULT · PAUSED':'TRAINING FEEDBACK'}</span><p>${fmt(p.text)}</p>${p.math?`<p>${esc(p.math)}</p>`:''}</div>`:''}${isDuel?(paused?`<button class="primary" data-act="practice:continue">Continue → ${p.next==='enemy'?'Sentry response':p.next==='round'?'New turn':'Choose next action'}</button>`:p.heroHp<=0||p.enemyHp<=0?`<p>Practice battle complete. Restart to try a different approach.</p>`:`<span class="small-caps">ROUND ${p.round} · ${p.usedAction?'Action spent':'Action available'} · ${p.usedBonus?'Bonus Action spent':'Bonus Action available'}</span><div class="practice-buttons"><button data-act="practice:attack" ${p.usedAction?'disabled':''}>⚔ Attack</button><button data-act="practice:dodge" ${p.usedAction?'disabled':''}>◇ Dodge</button><button data-act="practice:heal" ${p.usedBonus||p.heroHp>=maxHp()?'disabled':''}>⚗ Bonus: Potion</button>${s.level===2&&s.classId==='fighter'?`<button data-act="practice:surge" ${!p.usedAction||p.surged?'disabled':''}>✦ Action Surge</button>`:''}${s.level===2&&s.classId==='rogue'?`<button data-act="practice:hide" ${p.usedBonus?'disabled':''}>↟ Cunning Hide</button>`:''}${s.classId==='wizard'?`<button data-act="practice:missile" ${p.usedAction||p.surgeOnly?'disabled':''}>✦ Magic Missile</button>`:''}<button data-act="practice:end">End turn →</button></div>`):''}`;
 }
 // Compact 5-foot square battlemap. This is a deliberate teaching encounter rather than a full VTT.
 const SQUARES=[[2,2]];const coverSquare=(x,y)=>x===1&&y===1;const deepCover=(x,y)=>x===0&&y===1;
-const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+const distance=(a,b)=>Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));
 function startTactics(practice=false){
  s.tactics={phase:'player',hero:{x:0,y:2},enemy:{x:4,y:1},enemyHp:14,enemyMax:14,round:1,usedMove:0,moveLimit:6,usedAction:false,usedBonus:false,disengaged:false,dodging:false,hidden:false,concentrating:false,reactionReady:true,result:null,next:null,log:[],practice};
  s.stage='crossingBattle';learn('movement');learn('cover');learn('reactions');learn('combat');
@@ -778,16 +863,17 @@ function tacticalDefeat(){s.stage='defeat';s.flags.defeatSource='bridge';s.tacti
 function tacticalContinue(){const t=s.tactics;if(!t||t.phase!=='result')return;const next=t.next;t.next=null;t.result=null;if(next==='victory')return tacticalWin();if(next==='defeat')return tacticalDefeat();if(next==='enemy')return tacticalEnemy();t.phase='player';t.round++;t.usedMove=0;t.moveLimit=6;t.usedAction=false;t.usedBonus=false;t.disengaged=false;t.reactionReady=true;commit();}
 function tacticalMove(x,y){
  const t=s.tactics;if(!t||t.phase!=='player'||x<0||x>=5||y<0||y>=4||(x===t.enemy.x&&y===t.enemy.y))return;
- const a=t.hero,b={x,y},steps=distance(a,b),cost=steps+(SQUARES.some(([xx,yy])=>x===xx&&y===yy)?1:0);
+ const a=t.hero,b={x,y},route=shortestRoute(a,b,t.enemy),cost=route?.cost??Infinity,steps=route?route.path.length-1:0;
  if(cost<1||cost+t.usedMove>(t.moveLimit||6))return;
  const wasNear=distance(a,t.enemy)<=1,willNear=distance(b,t.enemy)<=1;
+ const triggersReaction=route.path.slice(1).some((square,i)=>distance(route.path[i],t.enemy)<=1&&distance(square,t.enemy)>1);
  t.hero=b;t.usedMove+=cost;
- if(wasNear&&!willNear&&!t.disengaged&&t.reactionReady){const d=rand(20),hit=d===20||(d!==1&&d+3>=hero().ac),dmg=hit?rand(6)+1:0,before=s.hp;s.hp=Math.max(0,s.hp-dmg);
+ if(triggersReaction&&!t.disengaged&&t.reactionReady){const d=rand(20),hit=d===20||(d!==1&&d+3>=hero().ac),dmg=hit?rand(6)+1:0,before=s.hp;s.hp=Math.max(0,s.hp-dmg);
   learn('reactions');t.reactionReady=false;
   tacticalResult('An opportunity attack!',`You leave the sentry's reach without Disengaging. The sentry uses its Reaction: d20 ${d} + 3 ${hit?'hits':'misses'}. ${hit?`You lose ${dmg} HP.`:'You escape unharmed.'}`,{kind:hit?'hurt':'defended',number:hit?`−${dmg} HP`:'MISS',hpBefore:before,hpAfter:s.hp,next:s.hp<=0?'defeat':'move'});return;
  }
  // Moving alone doesn't end your Action, but still shows the pause requested by the player.
- tacticalResult('You reposition',`You move ${steps*5} feet${cost>steps?' through difficult terrain':''}. Remaining movement: ${((t.moveLimit||6)-t.usedMove)*5} feet. Your Action is still available.`,{kind:'defended',number:`${(6-t.usedMove)*5} FT`,next:'move'});
+ tacticalResult('You reposition',`You move along ${steps} squares (${cost*5} feet of movement used)${cost>steps?' including difficult terrain':''}. Route: ${route.path.slice(1).map(p=>'('+ (p.x+1)+','+(p.y+1)+')').join(' → ')}. Remaining movement: ${((t.moveLimit||6)-t.usedMove)*5} feet. Your Action is still available.`,{kind:'defended',number:`${Math.max(0,(t.moveLimit||6)-t.usedMove)*5} FT`,next:'move'});
 }
 function tacticalAction(kind){
  const t=s.tactics;if(!t||t.phase!=='player')return;
@@ -803,7 +889,7 @@ function tacticalAction(kind){
  }
  if(kind==='surge'){
   if(s.classId!=='fighter'||s.level<2||s.actionSurge<=0||!t.usedAction)return;
-  s.actionSurge--;t.usedAction=false;
+  s.actionSurge--;t.usedAction=false;t.surgeOnly=true;
   tacticalResult('Action Surge!', 'You gain one additional Action this turn (not the Magic action). Your Action Surge use is now spent.',{kind:'defended',number:'+1 ACTION',next:'bonus'});return;
  }
  if(kind.startsWith('cunning')&&s.classId==='rogue'&&s.level>=2&&!t.usedBonus){t.usedBonus=true;learn('level');if(kind==='cunningDash'){t.moveLimit=(t.moveLimit||6)+6;tacticalResult('Cunning Action: Dash','You spend a Bonus Action to gain 30 feet of movement and still keep your main Action.',{kind:'defended',number:'+30 FT',next:'bonus'});}else if(kind==='cunningHide'){if(!deepCover(t.hero.x,t.hero.y)){t.usedBonus=false;tacticalResult('You need deeper cover','To attempt Hide in the 2024 rules, you must be heavily obscured or behind three-quarters or total cover and out of enemy sight. Move to the stacked crates (▥).',{next:'bonus'});return;}const d=rand(20),total=d+hero().skills.stealth;t.hidden=total>=15;t.hideDC=total;tacticalResult(t.hidden?'You conceal yourself':'You remain visible',`Cunning Action (Bonus Action): d20 ${d} + ${hero().skills.stealth} = ${total} vs DC 15.`,{next:'bonus'});}else{t.disengaged=true;tacticalResult('Cunning Action: Disengage','Your Rogue spends a Bonus Action to Disengage, avoiding opportunity attacks during movement.',{kind:'defended',number:'BONUS',next:'bonus'});}return;}
@@ -815,7 +901,7 @@ function tacticalAction(kind){
  if(t.usedAction)return;
  if(kind==='dash'){t.moveLimit=12;t.usedAction=true;tacticalResult('Dash','You gain extra movement equal to your Speed this turn. You still must avoid an enemy’s reach unless you Disengage.',{kind:'defended',number:'+30 FT',next:'afterAction'});return;}
  if(kind==='disengage'){t.disengaged=true;t.usedAction=true;tacticalResult('Disengage','Your movement for the rest of this turn does not provoke opportunity attacks. You can still move using remaining movement.',{kind:'defended',number:'SAFE',next:'afterAction'});return;}
- if(kind==='dodge'){t.dodging=true;t.usedAction=true;tacticalResult('Dodge','You focus on defense; visible enemies have disadvantage on attacks against you until your next turn, while you can still dodge.',{kind:'defended',number:'DODGE',next:'enemy'});return;}
+ if(kind==='dodge'){t.dodging=true;t.usedAction=true;tacticalResult('Dodge','You focus on defense; visible enemies have disadvantage on attacks against you until your next turn, while you can still dodge.',{kind:'defended',number:'DODGE',next:'afterAction'});return;}
  if(kind==='hide'&&s.classId==='rogue'){
   if(!deepCover(t.hero.x,t.hero.y)){tacticalResult('No hiding place here','Under the 2024 rules, the Hide action needs sufficient concealment. Move behind the stacked crates (▥) before you try.',{kind:'neutral',next:'bonus'});return;}
   const d=rand(20),total=d+hero().skills.stealth,success=total>=15;t.hidden=success;t.hideDC=total;t.usedAction=true;
@@ -823,7 +909,7 @@ function tacticalAction(kind){
  }
  if(kind==='attack'||kind==='missile'){
   const dist=distance(t.hero,t.enemy),close=dist<=1,isWizard=s.classId==='wizard',ranged=s.equipped==='alternate'||isWizard||kind==='missile';
-  if(kind==='missile'&&(!isWizard||s.slots<=0||dist>6))return;
+  if(kind==='missile'&&(!isWizard||s.slots<=0||dist>6||t.surgeOnly))return;
   if(!ranged&&dist>1)return;
   if(ranged&&dist>6)return;
   const before=t.enemyHp;
@@ -832,14 +918,14 @@ function tacticalAction(kind){
    const dice=[rand(4)+1,rand(4)+1,rand(4)+1];damage=dice.reduce((a,b)=>a+b,0);s.slots--;
    text=`Three Magic Missile darts strike for ${dice.join(' + ')} = ${damage} force damage. One level-1 slot is spent.`;math='Magic Missile hits automatically; no attack roll.';learn('slots');
   }else{
-   const adv=t.hidden,d1=rand(20),d2=adv?rand(20):null,d=adv?Math.max(d1,d2):d1;
+   const dis=rangedDisadvantage(ranged,close),mode=opposingRolls(t.hidden,dis),adv=mode==='advantage',d1=rand(20),d2=mode==='normal'?null:rand(20),d=d2===null?d1:mode==='advantage'?Math.max(d1,d2):Math.min(d1,d2);
    const bonus=5,ac=12+(ranged&&coverSquare(t.enemy.x,t.enemy.y)?2:0),crit=d===20;hit=crit||(d!==1&&d+bonus>=ac);
    const dieType=isWizard?10:(s.classId==='fighter'&&ranged?6:hero().damageDie);
    if(hit){damage=rand(dieType)+(crit?rand(dieType):0)+(isWizard?0:3);
     if(s.classId==='rogue'&&adv){const sneak=rand(6)+(crit?rand(6):0);damage+=sneak;learn('sneak');}
    }
    text=`${isWizard?'Fire Bolt':ranged?(s.classId==='fighter'?'Javelin':'Shortbow'):hero().weapon} ${hit?'hits':'misses'}${hit?` for ${damage} damage`:''}.`;
-   math=`d20 ${d1}${d2===null?'':` / ${d2} → ${d}`} + ${bonus} = ${d+bonus} vs AC ${ac}${crit?' · CRITICAL':''}`;
+   math=`d20 ${d1}${d2===null?'':` / ${d2} → ${d} (${mode})`} + ${bonus} = ${d+bonus} vs AC ${ac}${crit?' · CRITICAL':''}${dis?' · Ranged attack within 5 ft: disadvantage':''}`;
   }
   t.enemyHp=Math.max(0,t.enemyHp-damage);t.usedAction=true;t.hidden=false;
   tacticalResult(hit?'Your attack connects':'Your attack misses',text,{math,kind:hit?'damage':'neutral',number:hit?`−${damage} HP`:'MISS',hpBefore:before,hpAfter:t.enemyHp,next:t.enemyHp<=0?'victory':'afterAction'});return;
@@ -859,12 +945,73 @@ function renderTactics(){
  const r=t.result;
  return `<section class="story-screen"><div class="chapter-strip"><span>CHAPTER 05 · THE BROKEN CROSSING</span>${chapterTicks(s.stage)}<span>Round ${t.round}</span></div><div class="combat-banner"><span>⚔ TACTICAL ENCOUNTER</span><h2>The Broken Crossing</h2><p>Each square represents 5 feet. Your speed is 30 feet per turn.</p></div><div class="combat-body"><div class="tactical-hps">${health('♥ '+esc(s.heroName),s.hp,maxHp(),'ally')}${health('⚔ Bridge sentry',t.enemyHp,t.enemyMax,'foe')}</div><div class="tactical-map" aria-label="Five by four square tactical battle map">${Array.from({length:4},(_,y)=>Array.from({length:5},(_,x)=>tile(x,y)).join('')).join('')}</div><div class="map-legend">♞ You &nbsp; ♜ Sentry &nbsp; ▤ Half cover (+2 AC) &nbsp; ▥ Three-quarters (+5 AC; allows Hide) &nbsp; ≈ Difficult terrain (extra 5 ft)</div>${r?`<div class="tactical-result ${r.kind}" role="status"><span class="small-caps">ACTION RESULT · READ BEFORE CONTINUING</span><h3>${esc(r.title)}</h3><p>${esc(r.body)}</p>${r.math?`<div class="outcome-math">${esc(r.math)}</div>`:''}${r.number?`<b class="tactic-delta">${esc(r.number)}</b>`:''}${r.hpBefore!==null?`<p>HP: ${r.hpBefore} → ${r.hpAfter}</p>`:''}<button class="primary" data-act="tactic:continue">Continue →</button></div>`:`<div class="tactical-actions"><span class="your-turn">● YOUR TURN · ${Math.max(0,(t.moveLimit||6)-t.usedMove)*5} FT REMAINING</span><p>Select a square to move; then choose your Action. Movement can happen before or after attacking, and may trigger reactions.</p><div class="practice-buttons"><button data-act="tactic:attack" ${t.usedAction?'disabled':''}>⚔ Attack</button>${s.classId==='wizard'&&s.slots>0?`<button data-act="tactic:missile" ${t.usedAction?'disabled':''}>✦ Magic Missile (${s.slots})</button>`:''}<button data-act="tactic:dodge" ${t.usedAction?'disabled':''}>◇ Dodge</button><button data-act="tactic:disengage" ${t.usedAction?'disabled':''}>↝ Disengage</button><button data-act="tactic:dash" ${t.usedAction?'disabled':''}>↠ Dash</button>${s.classId==='rogue'?`<button data-act="tactic:hide" ${t.usedAction?'disabled':''}>↟ Hide</button>`:''}${s.classId==='rogue'&&s.level>=2?`<button data-act="tactic:cunning" ${t.usedBonus?'disabled':''}>Cunning Disengage</button><button data-act="tactic:cunningDash" ${t.usedBonus?'disabled':''}>Cunning Dash</button><button data-act="tactic:cunningHide" ${t.usedBonus?'disabled':''}>Cunning Hide</button>`:''}${s.classId==='fighter'&&s.level>=2&&t.usedAction&&s.actionSurge>0?`<button data-act="tactic:surge">Action Surge</button>`:''}</div><div class="bonus-actions"><span class="small-caps">BONUS ACTIONS</span><div class="practice-buttons"><button data-act="tactic:potion" ${t.usedBonus||s.potions<=0||s.hp>=maxHp()?'disabled':''}>⚗ Potion (${s.potions})</button>${s.classId==='fighter'?`<button data-act="tactic:wind" ${t.usedBonus||s.secondWind<=0||s.hp>=maxHp()?'disabled':''}>✚ Second Wind (${s.secondWind})</button>`:''}${s.inventory.smoke>0?`<button data-act="tactic:smoke" ${t.usedBonus?'disabled':''}>◈ Smoke (${s.inventory.smoke})</button>`:''}</div></div><p class="tactic-note">${distance(t.hero,t.enemy)<=1?'The sentry is within 5 feet (melee reach).':'The sentry is not in melee reach. Move close for a melee attack, or use a ranged option from your Pack.'} Your equipped weapon: ${s.equipped==='alternate'?(s.classId==='fighter'?'Javelin':s.classId==='rogue'?'Shortbow':'Staff'):hero().weapon}.</p><button class="secondary" data-modal="inventory">Pack / change weapon ↗</button><button class="secondary" data-act="tactic:end">End turn without attacking →</button></div>`}<details class="combat-history"><summary>Battle log (${t.log.length})</summary>${t.log.slice(0,20).map(a=>`<p>${esc(a)}</p>`).join('')}</details></div></section>`;
 }
+
+function beginBeaconTest(){
+ s.finalTest={active:true,phase:'player',round:1,enemyHp:16,enemyMax:16,usedAction:false,usedBonus:false,extraUsed:false,hidden:false,dodging:false,result:null,next:null};
+ learn('level');s.stage='beaconTest';s.storyResult=null;s.outcome=null;commit();
+}
+function beaconPause(title,body,next='player',kind='neutral'){
+ const t=s.finalTest;t.phase='result';t.result={title,body,kind};t.next=next;record(title+': '+body,'combat');commit();
+}
+function beaconAction(action){
+ const t=s.finalTest;if(!t||t.phase!=='player')return;
+ if(action==='surge'&&s.classId==='fighter'&&s.actionSurge>0&&t.usedAction&&!t.extraUsed){s.actionSurge--;t.extraUsed=true;t.usedAction=false;beaconPause('Action Surge','You gain one additional non-Magic Action this turn. Choose another Attack.','player','heal');return;}
+ if(action==='hide'&&s.classId==='rogue'&&s.level>=2&&!t.usedBonus){const d=rand(20),total=d+hero().skills.stealth;t.usedBonus=true;t.hidden=total>=15;beaconPause(t.hidden?'You vanish into the beacon light':'The echo follows your movements',`Cunning Action: d20 ${d} + ${hero().skills.stealth} = ${total} against DC 15. ${t.hidden?'Your next finesse attack has advantage and qualifies for Sneak Attack.':'Try attacking or ending your turn.'}`,'player','defended');return;}
+ if(action==='potion'&&!t.usedBonus&&s.potions>0&&s.hp<maxHp()){const before=s.hp;s.hp=Math.min(maxHp(),s.hp+rand(4)+rand(4)+2);s.potions--;t.usedBonus=true;beaconPause('Potion of Healing',`Bonus Action restores ${s.hp-before} HP (${before} → ${s.hp}).`,'player','heal');return;}
+ if(action==='wind'&&!t.usedBonus&&s.classId==='fighter'&&s.secondWind>0&&s.hp<maxHp()){const before=s.hp;s.hp=Math.min(maxHp(),s.hp+rand(10)+s.level);s.secondWind--;t.usedBonus=true;beaconPause('Second Wind',`You regain ${s.hp-before} HP without spending your Action.`,'player','heal');return;}
+ if(action==='end'){beaconPause('You steady your stance','The echo prepares to demonstrate its next move.','enemy');return;}
+ if(t.usedAction)return;
+ if(action==='dodge'){t.dodging=true;t.usedAction=true;beaconPause('You Dodge','The echo has disadvantage on its next attack.','player','defended');return;}
+ let damage=0,body='';
+ if(action==='missile'&&s.classId==='wizard'&&s.slots>0&&!t.extraUsed){s.slots--;damage=rand(4)+rand(4)+rand(4)+3;body=`Magic Missile: three darts automatically deal ${damage} force damage. One spell slot spent.`;}
+ else if(action==='attack'){
+  const d1=rand(20),d2=t.hidden?rand(20):null,d=d2===null?d1:Math.max(d1,d2),crit=d===20,hit=crit||(d!==1&&d+hero().attack>=12);
+  damage=hit?rand(hero().damageDie)+(crit?rand(hero().damageDie):0)+hero().damageMod:0;
+  if(hit&&s.classId==='rogue'&&t.hidden){damage+=rand(6)+(crit?rand(6):0);learn('sneak');}
+  body=`${hero().attackName}: d20 ${d1}${d2===null?'':' / '+d2+' → '+d} + ${hero().attack} against AC 12. ${hit?'Hit for '+damage+' damage.':'Miss.'}`;
+ }else return;
+ t.hidden=false;t.usedAction=true;t.enemyHp=Math.max(0,t.enemyHp-damage);
+ beaconPause(t.enemyHp===0?'You pass the beacon test':'Your action resolves',`${body} Echo HP ${t.enemyHp}/${t.enemyMax}.`,t.enemyHp===0?'win':'player',damage?'damage':'neutral');
+}
+function beaconContinue(){
+ const t=s.finalTest;if(!t||t.phase!=='result')return;const next=t.next;t.result=null;t.next=null;
+ if(next==='win'){s.finalTest=null;s.flags.beaconPassed=true;s.stage='levelup';outcome('You earned the echo’s respect','The echo kneels and the path opens. You demonstrated how your class abilities can shape the same encounter differently.',true);commit();return;}
+ if(next==='enemy'){
+  const a=rand(20),b=t.dodging?rand(20):null,d=b===null?a:Math.min(a,b),hit=d===20||(d!==1&&d+3>=hero().ac),damage=hit?rand(4)+1:0;
+  const before=s.hp;s.hp=Math.max(1,s.hp-damage);t.dodging=false;
+  beaconPause(hit?'The echo strikes!':'The echo misses',`d20 ${a}${b===null?' / '+b+' → '+d+' (disadvantage)':''} + 3 against AC ${hero().ac}. ${hit?'You take '+(before-s.hp)+' nonlethal damage.':'The echo misses.'}`,'round',hit?'hurt':'defended');return;
+ }
+ if(next==='round'){t.round++;t.usedAction=false;t.usedBonus=false;t.extraUsed=false;}
+ t.phase='player';commit();
+}
+function renderBeaconTest(){
+ const t=s.finalTest, r=t.result;
+ return `<section class="story-screen"><div class="combat-banner"><span>CHAPTER 8 · LEVEL-2 CHALLENGE</span><h2>The Beacon’s Echo</h2><p>Demonstrate your class features; the echo will stop before you fall unconscious.</p></div><div class="combat-body"><div class="tactical-hps"><div class="tactical-health ally"><span>♥ ${esc(s.heroName)}</span><strong>${s.hp}/${maxHp()} HP</strong><div><i style="width:${100*s.hp/maxHp()}%"></i></div></div><div class="tactical-health foe"><span>✦ Echo</span><strong>${t.enemyHp}/${t.enemyMax} HP</strong><div><i style="width:${100*t.enemyHp/t.enemyMax}%"></i></div></div></div>${r?`<div class="tactical-result ${r.kind}"><span class="small-caps">ROUND ${t.round} · ACTION RESULT</span><h3>${esc(r.title)}</h3><p>${esc(r.body)}</p><button class="primary" data-act="beacon:continue">Continue →</button></div>`:`<div class="tactical-actions"><strong>YOUR TURN · ROUND ${t.round}</strong><p>${t.usedAction?'Your main Action is spent; you can end the turn or use an available class feature.':'Choose an Action. Bonus Actions are optional.'}</p><div class="practice-buttons"><button data-act="beacon:attack" ${t.usedAction?'disabled':''}>⚔ Attack</button>${s.classId==='wizard'?`<button data-act="beacon:missile" ${t.usedAction||s.slots<=0?'disabled':''}>✦ Magic Missile (${s.slots})</button>`:''}<button data-act="beacon:dodge" ${t.usedAction?'disabled':''}>◇ Dodge</button>${s.classId==='fighter'&&s.actionSurge>0?`<button data-act="beacon:surge" ${!t.usedAction||t.extraUsed?'disabled':''}>Action Surge (${s.actionSurge})</button>`:''}${s.classId==='rogue'?`<button data-act="beacon:hide" ${t.usedBonus?'disabled':''}>Cunning Hide</button>`:''}${s.classId==='fighter'?`<button data-act="beacon:wind" ${t.usedBonus||s.secondWind<=0||s.hp>=maxHp()?'disabled':''}>Second Wind</button>`:''}<button data-act="beacon:potion" ${t.usedBonus||s.potions<=0||s.hp>=maxHp()?'disabled':''}>Healing potion</button><button data-act="beacon:end">End turn →</button></div></div>`}</div></section>`;
+}
 function campaignEvent(action){
+ if(action.startsWith('beacon:')){const key=action.split(':')[1];if(key==='continue')beaconContinue();else beaconAction(key);return true;}
  if(action==='enterForest'){campaignAct(action);return true;}
  if(action==='mind:use'||action==='mind:accept'){resolveTacticalMind(action==='mind:use');return true;}
  if(action==='mode:guided'||action==='mode:tabletop'){s.mode=action.split(':')[1];commit(false);return true;}
- if(action.startsWith('checkpoint:')){const n=Number(action.split(':')[1]),snapshot=s.checkpoints[n];if(!snapshot||!confirm(`Replay Chapter ${n} from its checkpoint? Later progress in this save will be replaced. Export a backup first if needed.`))return true;
-  const copies=s.checkpoints;const oldMode=s.mode;s=upgradeSave(JSON.parse(JSON.stringify(snapshot)));s.checkpoints=Object.fromEntries(Object.entries(copies).filter(([k])=>Number(k)<=n));s.mode=oldMode;s.stage=CHAPTER_START[n]||s.stage;s.storyResult=null;s.pending=null;s.tactics=null;s.practice=null;modal=null;record(`Replayed chapter ${n} checkpoint.`);commit();return true;}
+ if(action.startsWith('checkpoint:')){
+  const n=Number(action.split(':')[1]),snapshot=s.checkpoints[n];
+  if(!snapshot||!confirm(`Start Chapter ${n} in a separate replay timeline? Your main campaign stays unchanged.`))return true;
+  if(!s.replay){try{localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch(e){alert('Unable to preserve your main save. Replay canceled.');return true;}}
+  const snapshots=s.checkpoints,oldMode=s.mode;
+  s=upgradeSave(validateSave(JSON.parse(JSON.stringify({...snapshot,version:1}))));
+  s.replay={chapter:n};s.checkpoints=Object.fromEntries(Object.entries(snapshots).filter(([k])=>Number(k)<=n));
+  s.mode=oldMode;s.stage=CHAPTER_START[n]||s.stage;s.storyResult=null;s.pending=null;s.tactics=null;s.practice=null;
+  modal=null;record(`Started a safe replay of Chapter ${n}.`);commit();return true;
+ }
+ if(action.startsWith('quiz:')){const [,id,index]=action.split(':'),q=QUIZZES[id];if(q&&s.learned[id]){const correct=Number(index)===q[3];s.quizFeedback={id,correct};if(correct)s.mastery[id]=true;commit(false);}return true;}
+ if(action.startsWith('rest:')){if(!s.restSession||!s.storyResult)return true;
+   if(action==='rest:finish'){s.restSession=null;commit(false);return true;}
+   if(action==='rest:spend'&&s.hitDice>0&&s.hp<maxHp()){
+    const dieType={fighter:10,rogue:8,wizard:6}[s.classId],r=rand(dieType),con=Math.floor((hero().stats.CON-10)/2),heal=Math.max(1,r+con),before=s.hp;
+    s.hp=Math.min(maxHp(),s.hp+heal);s.hitDice--;s.restSession.spent++;s.restSession.total+=s.hp-before;
+    s.storyResult.title='You spend a Hit Die';s.storyResult.body=`Hit Die d${dieType}: ${r} ${signed(con)} CON = ${heal} healing. HP ${before} → ${s.hp}. You may spend another if you have dice and missing HP.`;s.storyResult.hpBefore=before;s.storyResult.hpAfter=s.hp;
+    record(s.storyResult.body,'roll');commit(false);
+   }return true;}
  if(action.startsWith('item:')){const item=action.split(':')[1];if(item==='potion'&&!s.storyResult&&!s.pending&&s.stage!=='combat'&&s.stage!=='crossingBattle'&&usablePotion()){modal=null;commit();}else if(item==='rations'&&s.inventory.rations>0){s.inventory.rations--;learn('inventory');record('You eat a ration. Food replenishes your energy narratively; it does not restore HP.');commit(false);}else if(item==='torch'){s.flags.torchLit=!s.flags.torchLit;learn('inventory');record(s.flags.torchLit?'You light a torch.':'You extinguish the torch.');commit(false);}else if(item==='equip'){s.equipped=s.equipped==='alternate'?'primary':'alternate';learn('inventory');commit(false);}else if(item==='smoke'&&s.stage==='crossingBattle'){modal=null;tacticalAction('smoke');}return true;}
  if(action.startsWith('tactic:')){
   const key=action.split(':')[1];
@@ -876,19 +1023,44 @@ function campaignEvent(action){
  if(action.startsWith('practice:')){
   const key=action.split(':')[1];let p=s.practice||{};
   if(key==='reset'){s.practice=null;commit(false);return true;}
-  if(key==='combat'){s.practice={mode:'duel',heroHp:maxHp(),enemyHp:12,text:'A practice dummy approaches. Each attack rolls against AC 12. Your adventure resources are untouched.'};commit(false);return true;}
-  if(key==='check'){const d=rand(20),bonus=hero().skills.perception,total=d+bonus;s.practice={mode:'check',text:`Perception check: d20 ${d} ${signed(bonus)} = **${total}** vs DC 13 → **${total>=13?'success':'failure'}**. The same procedure works for other skills.`};learn('checks');commit(false);return true;}
-  if(key==='spell'){const d=rand(20),save=d+2;s.practice={mode:'spell',text:`A tutor casts Burning Hands (spell save DC 13). Practice target rolls d20 ${d} + 2 = ${save}, so it ${save>=13?'succeeds and takes half damage':'fails and takes full damage'}. Spell attacks use the caster’s d20 against AC instead.`};learn('spells');commit(false);return true;}
-  if(p.mode==='duel'){
-   if(p.heroHp<=0||p.enemyHp<=0)return true;
-   if(key==='attack'||key==='surge') {if(key==='surge'&&(s.classId!=='fighter'||s.level<2||p.surged))return true;if(key==='surge')p.surged=true;const d=rand(20),d2=p.hidden?rand(20):null,die=d2===null?d:Math.max(d,d2),hit=die===20||(die!==1&&die+hero().attack>=12);let damage=hit?rand(hero().damageDie)+hero().damageMod:0;if(hit&&s.classId==='rogue'&&p.hidden){damage+=rand(6);learn('sneak');}p.enemyHp=Math.max(0,p.enemyHp-damage);p.text=`${key==='surge'?'Fighter Action Surge provides an extra Attack action. ':''}You roll ${d}${d2!==null?' / '+d2+' (advantage)':''} ${signed(hero().attack)} against AC 12: ${hit?'hit for '+damage+' damage':'miss'}.`;p.hidden=false;
-   }else if(key==='hide'&&s.classId==='rogue'&&s.level===2){const d=rand(20);p.hidden=d+hero().skills.stealth>=15;p.text=`Cunning Action (Bonus Action) Hide: d20 ${d} + ${hero().skills.stealth} = ${d+hero().skills.stealth} vs 15. ${p.hidden?'You are hidden and gain advantage on your next attack.':'You were spotted.'}`;s.practice=p;commit(false);return true;}else if(key==='missile'&&s.classId==='wizard'){const dmg=rand(4)+rand(4)+rand(4)+3;p.enemyHp=Math.max(0,p.enemyHp-dmg);p.text=`Magic Missile automatically deals ${dmg} force damage. In the actual adventure you would spend a spell slot, but practice costs nothing.`;}else if(key==='heal'){const h=rand(4)+rand(4)+2;p.heroHp=Math.min(maxHp(),p.heroHp+h);p.text=`Practice potion restores ${h} HP; no real potion spent.`;}
-   else if(key==='dodge'){p.dodging=true;p.text='You Dodge, so the dummy attacks with disadvantage.';}else return true;
-   if(p.enemyHp>0){const d=rand(20),d2=p.dodging?rand(20):null,die=d2===null?d:Math.min(d,d2),hit=die===20||(die!==1&&die+2>=hero().ac),dmg=hit?rand(4):0;p.heroHp=Math.max(0,p.heroHp-dmg);p.text+=` Dummy attack: ${d}${d2!==null?' / '+d2:''} + 2 vs AC ${hero().ac}, ${hit?'deals '+dmg+' damage':'misses'}.`;p.dodging=false;}else p.text+=' Victory! Start practice combat to try again.';
-   if(p.heroHp<=0)p.text+=' You reached 0 practice HP; actual death-saving mechanics are not simulated.';
+  if(key==='combat'){s.practice={mode:'duel',phase:'player',round:1,heroHp:maxHp(),enemyHp:18,usedAction:false,usedBonus:false,surged:false,hidden:false,dodging:false,text:'The training sentry approaches. You act first.',math:'',next:null};commit(false);return true;}
+  if(key==='check'){const d=rand(20),bonus=hero().skills.perception,total=d+bonus;s.practice={mode:'check',text:`Perception check: d20 ${d} ${signed(bonus)} = **${total}** vs DC 13 → **${total>=13?'success':'failure'}**.`};learn('checks');commit(false);return true;}
+  if(key==='spell'){const d=rand(20),save=d+2;s.practice={mode:'spell',text:`A tutor casts Burning Hands. Target saves: d20 ${d} + 2 = ${save} against DC 13 → **${save>=13?'half damage':'full damage'}**. A spell attack would instead roll against the target’s AC.`};learn('spells');commit(false);return true;}
+  if(p.mode!=='duel')return true;
+  if(key==='continue'&&p.phase==='result'){
+   const next=p.next;p.next=null;p.phase='player';p.math='';
+   if(next==='done'){p.text='You completed the practice fight. Restart to train again.';p.phase='done';}
+   else if(next==='enemy'){
+    const a=rand(20),b=p.dodging?rand(20):null,die=b===null?a:Math.min(a,b),hit=die===20||(die!==1&&die+2>=hero().ac),dmg=hit?rand(4)+(die===20?rand(4):0):0;
+    p.heroHp=Math.max(0,p.heroHp-dmg);p.dodging=false;
+    p.text=hit?`The sentry hits for ${dmg} damage.`:'The sentry misses.';
+    p.math=`d20 ${a}${b!==null?' / '+b+' → '+die+' (disadvantage)':''} + 2 vs AC ${hero().ac}`;
+    p.next='round';p.phase='result';
+   }else if(next==='round'){
+    p.round++;p.usedAction=false;p.usedBonus=false;p.surged=false;p.surgeOnly=false;p.text='New round — decide how to use your Action and Bonus Action.';
+   }
    s.practice=p;commit(false);return true;
   }
-  return true;
+  if(p.phase!=='player'||p.heroHp<=0||p.enemyHp<=0)return true;
+  if(key==='end'){p.text='You end your turn. The sentry acts next.';p.math='';p.phase='result';p.next='enemy';}
+  else if(key==='surge'&&s.classId==='fighter'&&s.level>=2&&p.usedAction&&!p.surged){p.usedAction=false;p.surged=true;p.surgeOnly=true;p.text='Action Surge adds one non-Magic Action to this same turn. Choose another Attack, Dodge, or other available nonmagical Action.';p.math='';p.phase='result';p.next='player';learn('level');}
+  else if(key==='hide'&&s.classId==='rogue'&&s.level>=2&&!p.usedBonus){const d=rand(20);p.hidden=d+hero().skills.stealth>=15;p.usedBonus=true;p.text=`Cunning Action: Hide as a Bonus Action. d20 ${d} + ${hero().skills.stealth} = ${d+hero().skills.stealth}. ${p.hidden?'You are concealed and your next attack has advantage.':'The sentry notices you.'}`;p.phase='result';p.next='player';learn('sneak');}
+  else if(key==='heal'&&!p.usedBonus&&p.heroHp<maxHp()){const h=rand(4)+rand(4)+2,before=p.heroHp;p.heroHp=Math.min(maxHp(),p.heroHp+h);p.usedBonus=true;p.text=`Potion: +${p.heroHp-before} HP (${before} → ${p.heroHp}). Your Action remains available.`;p.phase='result';p.next='player';}
+  else if(key==='dodge'&&!p.usedAction){p.usedAction=true;p.dodging=true;p.text='Dodge uses your Action: the enemy rolls with disadvantage against you.';p.phase='result';p.next='player';}
+  else if((key==='attack'||key==='missile')&&!p.usedAction){
+   const wizard=s.classId==='wizard';if(key==='missile'&&!wizard)return true;if(key==='missile'&&p.surgeOnly)return true;
+   const before=p.enemyHp;let damage=0;
+   if(key==='missile'){damage=rand(4)+rand(4)+rand(4)+3;p.text=`Magic Missile strikes automatically for ${damage} force damage. Practice uses no campaign spell slots.`;p.math='Three darts × (1d4 + 1)';learn('slots');}
+   else{const a=rand(20),b=p.hidden?rand(20):null,d=b===null?a:Math.max(a,b),crit=d===20,hit=crit||(d!==1&&d+hero().attack>=12);
+    damage=hit?rand(hero().damageDie)+(crit?rand(hero().damageDie):0)+hero().damageMod:0;
+    if(hit&&s.classId==='rogue'&&p.hidden){damage+=rand(6)+(crit?rand(6):0);learn('sneak');}
+    p.math=`d20 ${a}${b===null?'':' / '+b+' → '+d} + ${hero().attack} vs AC 12${crit?' · CRITICAL':''}`;
+    p.text=hit?`Attack hits for ${damage} damage.${s.classId==='rogue'&&p.hidden?' Sneak Attack applied.':''}`:'Your attack misses.';
+   }
+   p.enemyHp=Math.max(0,before-damage);p.hidden=false;p.usedAction=true;p.phase='result';p.next='player';
+   if(p.enemyHp===0){p.text+=' Training victory!';p.next='done';}
+  }
+  s.practice=p;commit(false);return true;
  }
  return false;
 }

@@ -39,3 +39,15 @@ This document records the intended tabletop rules baseline, corrections since v1
 ## Compatibility and testing
 
 The stored JSON retains the old `version: 1` shape and local-storage key deliberately, adding optional fields through safe defaults during migration. Tests cover a save from before Chapter 4, new story chapters, a bridge battle and noncombat crossing, Wizard and Fighter feature paths, mobile UI, rule lookup, and result pauses. These tests are **targeted browser-flow checks**, not a formal exhaustive proof of every possible decision combination.
+
+
+## v2.3 follow-up (2026-10-10)
+
+- **Rests:** players may decide to spend a further available Hit Die after each roll on the same uninterrupted Short Rest. Each roll adds the CON modifier, with a minimum of 1 HP.
+- **Movement:** each entered 5-ft square costs one movement unit, or two on difficult terrain, with eight-neighbor diagonal movement, tutorial-specific blocked-space restrictions, a least-cost path, and opportunity attacks checked along the route. Explicit freehand path drawing is not yet implemented.
+- **Ranged attacks:** disadvantage if an eligible hostile creature is within 5 ft, including spell attack rolls; opposing advantage and disadvantage cancel.
+- **Action Surge:** one additional Action on the turn, excluding the Magic action (2024 rules). The revised practice duel now pauses before the sentry responds.
+- **Chapter 8 challenge:** a brief training duel and an alternative noncombat resolution to demonstrate new class abilities before the ending. Nonlethal training strikes and simplified NPC behavior are intentional house rules.
+- **Character creation:** the preset characters still omit full origin, feat, weapon mastery, and prepared-spell selection. These remain labeled simplifications; this project does not assert full SRD simulation.
+
+Primary references: D&D Beyond 2024 Basic Rules, **Playing the Game**, **Character Classes**, and **Rules Glossary**, available via https://www.dndbeyond.com/sources/dnd/br-2024/ .

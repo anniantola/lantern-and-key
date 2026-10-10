@@ -1,8 +1,38 @@
-# Lantern & Key — Complete learning campaign (v2.2)
+# Lantern & Key — Complete learning campaign (v2.3)
 
 **A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
 
-## What's new in v2.0 (included in v2.2)
+## v2.3 — Stability, rules & learning update
+
+**Before upgrading:** use **Settings → Export save as JSON**. This version preserves the `lantern-and-key.save.v1` schema and v2.2 progress. Older imported saves are validated more strictly; malformed files are rejected instead of rendering potentially unsafe data.
+
+### Changes
+
+- **Safer importing:** bounded, sanitized save objects, validation of dice and combat state, a pre-import backup, and a recovery screen if local saved data becomes invalid. Never import JSON backups from unknown sources.
+- **Protected chapter replay:** Chapters → Replay creates a separate replay save without touching the original campaign. Return with **Chapters → Return to main campaign**. The main and replay timelines have separate storage slots.
+- **Corrected tactical movement:** chooses a traversable least-cost path across 5-ft squares, accounts for difficult terrain along the route and reactions along the path, supports diagonal adjacency, and displays the chosen route in results. The map still uses simplified tutorial targeting and cover.
+- **Ranged attacks:** apply disadvantage when an eligible hostile creature is within 5 ft; advantage and disadvantage cancel. Fighter Action Surge cannot be spent to cast a Magic action. Dodge allows moving afterward on the bridge.
+- **Practice combat:** your action and the sentry response have separate Continue screens; the simulated turn has Action / Bonus Action distinctions and level-2 Action Surge remains part of the same turn.
+- **Resting:** each Short Rest offers repeated Hit Die rolls, decided one at a time. Features that recharge during the rest are still tracked.
+- **Learning journal:** each discovered lesson offers a two-answer knowledge check. A separate "mastered" marker distinguishes practice from merely finding a lesson.
+- **Chapter 8:** new Beacon Test encounter after reaching level 2, with Fighter Action Surge, Rogue Cunning Action, Wizard magic and a nonviolent skill-based solution. It does not replace the existing ending.
+- **Offline reliability:** web pages, JS and CSS check the network first and fall back to cached copies while offline. A new service-worker version never forces a reload; the game presents its existing update prompt.
+- **Phone readability:** slightly larger bottom-tab labels. External Google Fonts removed so the app uses the same system-font fallbacks online and offline.
+- **Build safety:** a dependency-free `node --test` suite runs in GitHub Actions before GitHub Pages deployment. The game's rules, routing, and import validator are partly separated into `logic.js` for independent testing.
+
+### Update an existing GitHub Pages repository from v2.2
+
+At the **repository root**, replace `game.js`, `style.css`, `sw.js`, `index.html`, `README.md`, and `RULES-AUDIT.md`. Upload **two new root-level files**, `logic.js` and `tests-core.cjs`. In your existing `.github/workflows` folder replace **`deploy.yml`**. Commit to `main`; **Settings → Pages → Source** stays **GitHub Actions**. **No new asset folders or illustrations** are required.
+
+**Important:** `logic.js` must be uploaded together with the modified `index.html` and `game.js`; the new version will not start without it. The `tests-core.cjs` file is also needed for the updated deployment workflow to pass. If you prefer a clean replacement, use the *complete* package; it includes all preexisting assets and GitHub Actions files.
+
+For local test runs with Node 22+: `node --test tests-core.cjs` and `node --check game.js`.
+
+**Limitations:** This remains a guided 8-chapter educational simulator, not a full virtual tabletop or AI Dungeon Master. The bridge has a small tutorial map and simplified enemy tactics. Automated coverage exercises the shared rules and import safety, with additional manual browser walkthroughs, but does not exhaustively verify all possible story/state combinations or every device's PWA caching.
+
+---
+
+## What's new in v2.0 (included in v2.3)
 
 | Chapter | Setting | Core lesson |
 | --- | --- | --- |
@@ -50,7 +80,7 @@ If upgrading directly from v1.3, use **`lantern-and-key-v2.2-complete.zip`** so 
 
 The **complete ZIP** is suitable for a fresh repository or a full replacement. It includes the same GitHub Actions workflow, all original and added assets, manifest, and app icons. The archive has no parent folder, so upload its contents to the repository root.
 
-**Important:** Before a major update, make a safety copy using **Settings → Export save as JSON**. v2.0 intentionally keeps the existing `lantern-and-key.save.v1` local-storage key and `version: 1` JSON data format so older saves remain loadable. The *game* is v2.2; the **save schema** stays v1 for compatibility.
+**Important:** Before a major update, make a safety copy using **Settings → Export save as JSON**. v2.0 intentionally keeps the existing `lantern-and-key.save.v1` local-storage key and `version: 1` JSON data format so older saves remain loadable. The *game* is v2.3; the **save schema** stays v1 for compatibility.
 
 ## GitHub Pages configuration — GitHub Actions
 
