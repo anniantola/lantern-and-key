@@ -1,8 +1,8 @@
-# Lantern & Key — Complete learning campaign (v2.1)
+# Lantern & Key — Complete learning campaign (v2.2)
 
 **A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
 
-## What's new in v2.0 (included in v2.1)
+## What's new in v2.0 (included in v2.2)
 
 | Chapter | Setting | Core lesson |
 | --- | --- | --- |
@@ -28,7 +28,11 @@ Each story choice and combat action pauses on a **readable result card** with a 
 - **Character sheet:** Current HP, max HP, hit dice, skills, spells, class feature uses, and the level-2 specialization.
 - **Save and install:** Auto-save in local browser storage; export/import JSON under Settings. Settings also has the optional Android PWA installation helper.
 
-**Phone navigation (v2.1):** All eight adventure tools are permanently visible in a two-row bottom navigation bar: Story, Character, Pack, Lessons, Chapters, Practice, Journal and Rules. On desktop the same tools appear below the header. Each opens directly; **Story** returns to the game. The large **⚙ Settings** button stays in the top-right and contains only install guidance, teaching mode, save export/import and reset. The dialog also has a clear **← Story** control. The bottom bar respects phone safe areas and does not cover story actions.
+**Phone navigation (v2.2):** All eight adventure tools are permanently visible in a two-row bottom navigation bar: Story, Character, Pack, Lessons, Chapters, Practice, Journal and Rules. On desktop the same tools appear below the header. Each opens directly; **Story** returns to the game. The large **⚙ Settings** button stays in the top-right and contains only install guidance, teaching mode, save export/import and reset. The dialog also has a clear **← Story** control. The bottom bar respects phone safe areas and does not cover story actions.
+
+## Update from v2.1 to v2.2 (persistent tab bar)
+
+Replace these root-level files: `game.js`, `style.css`, and `sw.js`. **No new folders or artwork.** On phones the eight-button bottom bar stays available while viewing Story, Character, Pack, Lessons, Chapters, Practice, Journal and Rules. You can switch straight from one to another. The selected tab is highlighted, Settings stays in the header, and returning to Story does not intentionally scroll you to the top. The tab's content scrolls in the area between the header and bottom bar, so no controls should be hidden. Existing saves are unaffected.
 
 ## Update from v2.0 to v2.1 (navigation only)
 
@@ -36,7 +40,7 @@ Replace these four root-level files in your existing GitHub repository: `game.js
 
 ## Upgrade from v1.3 (GitHub website, no folder upload required)
 
-Use **`lantern-and-key-v2.1-complete.zip`**, not the complete package, for the smallest update:
+If upgrading directly from v1.3, use **`lantern-and-key-v2.2-complete.zip`** so the new chapters and artwork are included:
 
 1. Download and extract the update ZIP.
 2. In the repository root, replace **`game.js`**, **`style.css`**, **`sw.js`** and **`README.md`**. Upload the optional reference file **`RULES-AUDIT.md`** to the root.
@@ -46,7 +50,7 @@ Use **`lantern-and-key-v2.1-complete.zip`**, not the complete package, for the s
 
 The **complete ZIP** is suitable for a fresh repository or a full replacement. It includes the same GitHub Actions workflow, all original and added assets, manifest, and app icons. The archive has no parent folder, so upload its contents to the repository root.
 
-**Important:** Before a major update, make a safety copy using **Settings → Export save as JSON**. v2.0 intentionally keeps the existing `lantern-and-key.save.v1` local-storage key and `version: 1` JSON data format so older saves remain loadable. The *game* is v2.0; the **save schema** stays v1 for compatibility.
+**Important:** Before a major update, make a safety copy using **Settings → Export save as JSON**. v2.0 intentionally keeps the existing `lantern-and-key.save.v1` local-storage key and `version: 1` JSON data format so older saves remain loadable. The *game* is v2.2; the **save schema** stays v1 for compatibility.
 
 ## GitHub Pages configuration — GitHub Actions
 
