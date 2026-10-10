@@ -51,3 +51,11 @@ The stored JSON retains the old `version: 1` shape and local-storage key deliber
 - **Character creation:** the preset characters still omit full origin, feat, weapon mastery, and prepared-spell selection. These remain labeled simplifications; this project does not assert full SRD simulation.
 
 Primary references: D&D Beyond 2024 Basic Rules, **Playing the Game**, **Character Classes**, and **Rules Glossary**, available via https://www.dndbeyond.com/sources/dnd/br-2024/ .
+
+## v2.4 — Original artifact, not an official class feature
+
+**The Last Lantern** is a fictional campaign-specific item created for this tutorial, not a named magic item from SRD 5.2.1. Its three sparks, story applications, rest-based replenishment, and distinct ending choices are **homebrew adventure rules**. They are intended to teach resource tradeoffs, roleplay consequences and informed decisions, not to represent an official D&D spell, magic-item template or class feature. Players without the artifact still have appropriate alternatives.
+
+A migration deliberately treats `ending: "take"` as authoritative and grants the carried item even if earlier backups contained `inventory.lantern: 0`; its unique item persists after sparks are spent. New save fields default safely to preserve old data.
+
+Chapter replays are separate from the main campaign, rather than rewinding the main slot.

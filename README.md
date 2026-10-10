@@ -1,6 +1,20 @@
-# Lantern & Key — Complete learning campaign (v2.3.2)
+# Lantern & Key — Complete learning campaign (v2.4)
 
 **A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
+
+## v2.4 — The Last Lantern matters (no story spoilers)
+
+**The most important compatibility fix:** If an older save records the **Dangerous Souvenir** / `ending: "take"` decision, the game guarantees **The Last Lantern ×1** appears in the Pack — even when an older `inventory.lantern` field explicitly says `0`. This applies to local saves, imported JSON backups, and isolated replay saves. Very early saves with only the Dangerous Souvenir journal entry are also recovered. The update will not take away the lantern after you have kept it, and does not overwrite your campaign choices.
+
+**New choices without spoilers:** The lantern now influences multiple later chapters, including encounters, resource use and a consequential late-campaign decision. It has **three sparks** to begin with; you choose when (and whether) to spend them. A full Long Rest restores one spark, up to three. Opportunities to learn about the item may also restore one. **The item itself is never consumed**, even if you spend all its sparks.
+
+Its abilities are clearly labeled as an **original homebrew quest artifact**; they are not official SRD spells or class features. Players who restored or returned the lantern still have fully playable story routes and meaningful decisions. Old saves that already reached the campaign ending can access the new artifact continuation without restarting their character or losing earlier progress.
+
+**Update your existing GitHub Pages repository:** Replace the seven existing **root-level** files `game.js`, `logic.js`, `style.css`, `sw.js`, `tests-core.cjs`, `README.md` and `RULES-AUDIT.md`. No new folders, images, icons, or workflow changes. Leave `.github/workflows/deploy.yml` as-is. Export a JSON save backup before updating; your existing saves use the same storage key and JSON schema.
+
+**Testing:** The automated suite now covers keeping and migrating the lantern, including old saves containing `lantern: 0`, importing those saves, spent resources, decision branches, and preserving the item throughout the campaign. Run `node --test tests-core.cjs` with Node 22+.
+
+---
 
 ## v2.3 — Stability, rules & learning update
 
@@ -34,7 +48,7 @@ For local test runs with Node 22+: `node --test tests-core.cjs` and `node --chec
 
 ## v2.3.2 — Lantern inventory correction
 
-When you choose **Keep the mysterious lantern** in Chapter 3, **The Last Lantern** now appears as a unique, nonconsumable quest item in the **Pack** tab. The story in Chapters 4 and 8 acknowledges carrying it. Saves created with v2.3.1 or earlier that already record `ending: "take" are corrected on load, without restarting or importing again. This is a story artifact, not a new attack or magic ability.
+When you choose **Keep the mysterious lantern** in Chapter 3, **The Last Lantern** now appears as a unique, nonconsumable quest item in the **Pack** tab. The story in Chapters 4 and 8 acknowledges carrying it. Saves created with v2.3.1 or earlier that already record `ending: "take"` are corrected on load, without restarting or importing again. In v2.4, this story artifact also has optional homebrew abilities with limited resources.
 
 **Update existing GitHub Pages installations:** Replace the root-level `game.js`, `tests-core.cjs`, `sw.js`, and `README.md`. The existing deployment workflow, artwork, and other source files can stay unchanged. Export a save backup before any update as usual.
 

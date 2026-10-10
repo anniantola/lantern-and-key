@@ -139,3 +139,126 @@ test('An imported older save with a keep decision repairs the lantern item',asyn
  assert.equal(game.read().inventory.lantern,1);
  game.modal('inventory');assert.match(game.app.innerHTML,/The Last Lantern ×1/);
 });
+
+// v2.4 regression: carried artifact is recovered from *explicit zero* old saves.
+test('Dangerous Souvenir saves with inventory lantern explicitly zero migrate to a real Pack item',()=>{
+ const old={...base,stage:'camp',ending:'take',inventory:{rope:1,rations:2,torch:1,smoke:1,lantern:0}};
+ const game=simulateGame(old);
+ game.modal('inventory');
+ assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+ assert.match(game.app.innerHTML,/3 \/ 3 sparks remaining/);
+ game.act('backStory');game.act('c:shortRest');
+ assert.equal(game.read().inventory.lantern,1);
+ assert.equal(game.read().lanternSparks,3);
+});
+test('Older Dangerous Souvenir journal records also migrate when ending is missing',()=>{
+ const old={...base,stage:'forest',ending:null,inventory:{lantern:0},journal:[{kind:'story',text:'A dangerous souvenir: you carry it'}]};
+ const game=simulateGame(old);game.modal('inventory');
+ assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+ game.act('backStory');game.act('c:camp');
+ assert.equal(game.read().ending,'take');
+});
+test('An imported legacy Dangerous Souvenir save recovers lantern even if inventory explicitly contains zero',async()=>{
+ const game=simulateGame({...base,stage:'forest'});
+ const incoming={...base,stage:'crossing',ending:'take',inventory:{lantern:0},flags:{}};
+ game.importFile({size:200,text:async()=>JSON.stringify(incoming)});
+ await new Promise(setImmediate);await new Promise(setImmediate);
+ assert.equal(game.read().inventory.lantern,1);
+ assert.equal(game.read().lanternSparks,3);
+ game.modal('inventory');assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+});
+test('Lantern ward consumes one spark and changes long rest safety, but does not consume the item',()=>{
+ const game=simulateGame({...base,stage:'camp',ending:'take',inventory:{lantern:0},hp:4,flags:{}});
+ game.act('c:lanternWard');
+ const after=game.read();
+ assert.equal(after.inventory.lantern,1);
+ assert.equal(after.lanternSparks,2);
+ assert.equal(after.flags.shelter,true);
+ assert.ok(after.storyResult);
+ game.act('continueStory');
+ game.act('c:longRest');
+ assert.equal(game.read().hp,12);
+ assert.equal(game.read().lanternSparks,3);
+ assert.equal(game.read().flags.longRested,true);
+});
+test('Lantern bridge choice gives a distinct crossing and updates campaign choices',()=>{
+ const game=simulateGame({...base,stage:'crossing',ending:'take',inventory:{lantern:0}});
+ game.act('c:lanternCross');
+ assert.equal(game.read().stage,'crossingAfter');
+ assert.equal(game.read().flags.lanternBridge,true);
+ assert.equal(game.read().lanternSparks,2);
+ assert.equal(game.read().inventory.lantern,1);
+});
+test('Using the lantern on the village ledger grants meaningful evidence at a cost',()=>{
+ const game=simulateGame({...base,stage:'market',ending:'take',inventory:{lantern:0}});
+ game.act('c:lanternLedger');
+ assert.equal(game.read().flags.villageEvidence,true);
+ assert.equal(game.read().flags.lanternLedger,true);
+ assert.equal(game.read().lanternSparks,2);
+ game.act('continueStory');
+ assert.doesNotMatch(game.app.innerHTML,/data-act="c:lanternLedger"/);
+});
+test('The arcane study may replenish a depleted lantern, but can be used only once',()=>{
+ const game=simulateGame({...base,stage:'archive',ending:'take',inventory:{lantern:1},lanternSparks:0});
+ game.act('c:lanternStudy');
+ assert.equal(game.read().lanternSparks,1);
+ assert.equal(game.read().flags.lanternStudied,true);
+ game.act('continueStory');
+ assert.doesNotMatch(game.app.innerHTML,/data-act="c:lanternStudy"/);
+});
+test('The final lantern choice branches the ending and preserves the artifact',()=>{
+ const game=simulateGame({...base,stage:'lanternOath',ending:'take',inventory:{lantern:0},lanternSparks:2});
+ assert.match(game.app.innerHTML,/c:lanternShare/);
+ game.act('c:lanternShare');
+ assert.equal(game.read().stage,'epilogue');
+ assert.equal(game.read().flags.lanternResolve,'share');
+ assert.equal(game.read().lanternSparks,1);
+ assert.equal(game.read().inventory.lantern,1);
+ game.act('continueStory');
+ assert.match(game.app.innerHTML,/new light somewhere below/);
+});
+test('The final choice never traps a player who has spent every lantern spark',()=>{
+ const game=simulateGame({...base,stage:'lanternOath',ending:'take',inventory:{lantern:1},lanternSparks:0});
+ assert.match(game.app.innerHTML,/c:lanternGuard/);
+ game.act('c:lanternShare');assert.equal(game.read().stage,'lanternOath');
+ game.act('c:lanternGuard');assert.equal(game.read().stage,'epilogue');
+ assert.equal(game.read().inventory.lantern,1);
+});
+test('An existing completed souvenir save can unlock the added final chapter without restarting',()=>{
+ const game=simulateGame({...base,stage:'epilogue',ending:'take',inventory:{lantern:0}});
+ assert.match(game.app.innerHTML,/c:lanternAfterword/);
+ game.act('c:lanternAfterword');
+ assert.equal(game.read().stage,'lanternOath');
+ assert.equal(game.read().inventory.lantern,1);
+});
+test('Other vault decisions keep working and cannot acquire the lantern',()=>{
+ for(const ending of ['return','restore','escape']){
+  const game=simulateGame({...base,stage:'lanternOath',ending,inventory:{lantern:0}});
+  game.modal('inventory');assert.doesNotMatch(game.app.innerHTML,/The Last Lantern ×1/);
+  game.act('backStory');game.act('c:lanternCommunity');
+  assert.equal(game.read().stage,'epilogue');
+  assert.equal(game.read().flags.lanternResolve,'community');
+  assert.equal(game.read().inventory.lantern,0);
+ }
+});
+test('Replay keeps the artifact, while the separate main timeline remains unchanged',()=>{
+ const main={...base,stage:'village',ending:'take',inventory:{lantern:0},heroName:'Main'};
+ const replay={...base,stage:'camp',ending:'take',inventory:{lantern:0},heroName:'Replay',replay:{chapter:4}};
+ const game=simulateGame(main,{'lantern-and-key.replay.v1':JSON.stringify(replay)});
+ game.modal('inventory');assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+ game.act('backStory');game.act('c:lanternWard');
+ assert.equal(JSON.parse(game.store['lantern-and-key.replay.v1']).inventory.lantern,1);
+ assert.equal(JSON.parse(game.store['lantern-and-key.save.v1']).inventory.lantern,0);
+ game.act('returnMain');game.modal('inventory');assert.match(game.app.innerHTML,/The Last Lantern ×1/);
+ // Opening the main timeline migrates and persists the kept item there, too.
+ assert.equal(JSON.parse(game.store['lantern-and-key.save.v1']).inventory.lantern,1);
+ assert.equal(JSON.parse(game.store['lantern-and-key.save.v1']).stage,'village');
+});
+test('Finishing the final check leads to the expanded lantern decision, not straight to epilogue',()=>{
+ const game=simulateGame({...base,stage:'levelup',ending:'take',inventory:{lantern:0},level:2,classId:'rogue',hp:17,flags:{beaconPassed:true},unlocked:8});
+ game.act('c:toFinal');
+ assert.match(game.app.innerHTML,/data-act="rollCheck"/);
+ game.act('rollCheck');
+ assert.equal(game.read().stage,'lanternOath');
+ assert.equal(game.read().inventory.lantern,1);
+});

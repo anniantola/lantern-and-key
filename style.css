@@ -161,3 +161,10 @@ button:focus-visible{outline:2px solid #ecd0a7;outline-offset:3px}
 .practice-hp{margin:14px 0;display:flex;flex-wrap:wrap;gap:10px}.practice-hp span{border:1px solid #87684d;padding:12px;border-radius:7px;flex:1;min-width:140px}
 .practice-feedback{line-height:1.75}.replay-banner button{margin-top:9px}
 @media(max-width:720px){:root{--game-bottom-tabs:calc(121px + env(safe-area-inset-bottom,0px))}}
+
+/* Lantern artifact: always readable in Pack, including older migrated saves. */
+.inventory-entry.lantern-item { background:linear-gradient(110deg,rgba(31,69,92,.34),rgba(12,23,39,.14));border:1px solid rgba(108,181,217,.48);border-radius:10px; }
+.inventory-entry.lantern-item b { color:#c1e4f5; }
+.lantern-sparks { display:flex;gap:8px;font-size:19px;margin-top:8px; }
+.lantern-sparks span { opacity:.25; }
+.lantern-sparks .filled { opacity:1;color:#9addff;text-shadow:0 0 9px rgba(89,199,255,.5); }
