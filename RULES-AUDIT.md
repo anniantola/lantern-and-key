@@ -83,3 +83,21 @@ Chapter replays are separate from the main campaign, rather than rewinding the m
 ## v2.4.1 — Story-state integrity
 
 Causal-prerequisite checks for the original vault, village evidence versus outcome, camp shelter, travel routes and the ending. These are **narrative correctness changes**, not modifications to official D&D rules. The manual-repair alternative is an original tutorial skill challenge, and the lantern is an original artifact. Old saves with contradictory council-state flags are reconciled using recorded verdicts where available.
+
+---
+
+## v3.1 — The Shattered Watchroad expansion
+
+The campaign now includes milestone advancement from level 2 to level 3 on reaching Glassfen (Chapter 12), and level 4 on reaching the Citadel (Chapter 15). Preset training characters receive additional Hit Points, Hit Dice, and class-specific options. The level-4 primary ability-score increase is preset at +2 instead of asking the player to choose a feat or Ability Score Improvement. The character sheet and sidebar display updated combat resources at these levels.
+
+**Fighter:** The training Champion has improved weapon critical range on a natural 19–20 in the new Watchroad encounters. Second Wind and Action Surge remain available, with in-encounter limitations visible to the player. These changes are an educational subset, not a full Fighting Style or Weapon Mastery simulation.
+
+**Rogue:** Sneak Attack increases to 2d6 at level 3. The Act II Thief has an adventure-specific Fast Hands distraction option for setting up a qualifying attack; this **is not** a complete or literal implementation of the SRD Thief feature. Cunning Action and existing tutorial restrictions remain.
+
+**Wizard:** Level-3/4 wizardry now tracks second-level spell slots separately and adds Shatter (3d8 thunder with a Constitution save for half damage). Damage and enemy AI are intentionally simplified. Arcane Recovery in Act II returns one expended second-level slot if one is available, otherwise a first-level slot; this is a narrowed implementation of the recovery rules, not the complete selection rules for Wizard spell-level recovery.
+
+**Rest and travel:** Act II adds short and long rests, rations or paid lodging, recovery, foraging using Wisdom (Survival), optional companions and fatigue when provisionless. A long rest consumes a ration or 5 gp as a **campaign-specific economy requirement**, not an SRD-wide rule. Map and chapter travel charge time and supplies consistently. A failed obstacle check can still progress the story at a narrative or HP cost; this is an explicit DM choice, not a generic rule guaranteeing success.
+
+**Original narrative mechanics:** Companion trust, faction reputation, seven major challenge gates, waylight ownership, Last Lantern sparks, businesses, bribes, investments, and the ending mandate/charter rules are all original homebrew systems. Nine Act II combat encounters are optional, with alternative solutions. Combatants, battle ranges and resolution are deliberately simplified. These choices teach resource management, negotiation, exploration and causal consequences rather than claiming to replicate every published rule.
+
+**Tests:** See the v3.1 README for the full 125-test result and browser walkthrough scope. The save format retains `version: 1` for compatibility. New state fields have defaults and are bounded and sanitized by save validation/normalization.

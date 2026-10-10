@@ -1,7 +1,7 @@
 /* Lantern & Key: deterministic, independently testable rules and save-validation helpers. */
 (function(root,factory){ const api=factory(); if(typeof module==='object' && module.exports) module.exports=api; root.LanternCore=api; })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
- const TYPES=['welcome','tavern','tavernHub','stranger','keeper','door','passage','passageChoice','vault','vaultAlert','combat','reveal','ending','defeat','forest','camp','trail','crossing','crossingBattle','crossingAfter','village','market','witness','council','trial','archive','altar','ascent','levelup','epilogue','beaconTest','lanternOath','roadMap','roadCamp','waymarket','waygate','northmoor','moorBeacon','glassfen','fenBeacon','harbor','harborBeacon','undercrypt','cryptArchive','citadel','citadelSpire','worldheart','roadFinale'];
+ const TYPES=['welcome','tavern','tavernHub','stranger','keeper','door','passage','passageChoice','vault','vaultAlert','combat','reveal','ending','defeat','forest','camp','trail','crossing','crossingBattle','crossingAfter','village','market','witness','council','trial','archive','altar','ascent','levelup','epilogue','beaconTest','lanternOath','roadMap','roadCamp','roadFireside','waymarket','wayInvestigation','waygate','northmoor','moorPass','maraMemory','moorBeacon','glassfen','fenCauseway','tamsinShelter','fenBeacon','harbor','harborTribunal','corvinLedger','harborBeacon','undercrypt','cryptThreshold','cryptArchive','citadel','citadelDebate','citadelSpire','heartTrial','worldheart','roadFinale'];
  const CLASSES=['fighter','rogue','wizard'];
  function plain(obj){return obj!==null && typeof obj==='object' && !Array.isArray(obj) && (Object.getPrototypeOf(obj)===Object.prototype || Object.getPrototypeOf(obj)===null);}
  function safeTree(value,depth=0){
@@ -24,7 +24,7 @@
   if(!plain(raw.flags)||!Array.isArray(raw.journal)||!Array.isArray(raw.checks))throw Error('Save is missing story records.');
   if(raw.journal.length>300||raw.checks.length>300)throw Error('Save history exceeds safety limits.');
   if(raw.stage!=='welcome'&&!inRange(raw.hp,0,200))throw Error('Invalid hit points.');
-  if(raw.level!==undefined && ![1,2].includes(raw.level))throw Error('Invalid character level.');
+  if(raw.level!==undefined && ![1,2,3,4].includes(raw.level))throw Error('Invalid character level.');
   for(const entry of raw.journal){if(!plain(entry)||typeof entry.text!=='string')throw Error('Invalid journal entry.');}
   for(const entry of raw.checks){if(!plain(entry)||typeof entry.success!=='boolean')throw Error('Invalid check history entry.');}
   if(raw.checkpoints!==undefined&&!plain(raw.checkpoints))throw Error('Invalid checkpoints.');

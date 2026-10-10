@@ -8,7 +8,7 @@ const source=fs.readFileSync(require('node:path').join(__dirname,'game.js'),'utf
 const instrumented=source.replace('s=load();\nrender();\n})();',`globalThis.__worldTest={
  get:()=>s, seed:(value)=>{s=upgradeSave(value);s.storyResult=null;s.outcome=null;s.pending=null;},
  freshWorld,normalizeWorld,world,worldAction,worldPartyAction,worldScene,worldBeacon,worldLoyalty,worldGain,worldAtlas,
- renderWorldMap,renderParty,renderWorldBattle,worldBattleAction,worldBeat,startWorldBattle,worldCompanionBonus,worldMapTravel,worldQuestLedger,upgradeSave,initialSave
+ renderWorldMap,renderParty,renderWorldBattle,worldBattleAction,worldBeat,startWorldBattle,worldCompanionBonus,worldMapTravel,worldQuestLedger,renderSheet,worldRestChoices,skillBonus,upgradeSave,initialSave
 };\ns=load();\nrender();\n})();`);
 assert.notEqual(instrumented,source,'test hook is present');
 function env(){
@@ -50,17 +50,17 @@ test('Three recruits are persistent, but only two travel actively',()=>{
  t.worldPartyAction('wparty:corvin');assert.deepEqual(Array.from(w.active),['tamsin']);
 });
 test('Private capture produces real monetary and social consequences',()=>{
- const t=seeded();for(const key of ['begin','camp','recruit:mara','recruit:tamsin','market','gate','beacon:waygate:claimed'])use(t,key);
- const w=t.get().frontier;assert.equal(w.beacons.waygate,'claimed');assert.equal(w.gold,34);assert.equal(w.dominion,1);assert.equal(w.reputation.keepers,-2);
+ const t=seeded();for(const key of ['begin','camp','recruit:mara','recruit:tamsin','market','gate','challenge:wayInvestigation','continue:wayInvestigation','beacon:waygate:claimed'])use(t,key);
+ const w=t.get().frontier;assert.equal(w.beacons.waygate,'claimed');assert.equal(w.gold,34);assert.equal(w.dominion,1);assert.equal(w.reputation.keepers,-2+(t.get().checks.at(-1)?.success?1:0));
  use(t,'beacon:waygate:claimed');assert.equal(w.gold,34);
 });
 test('Repeated private claims can prompt active companions to leave',()=>{
- const t=seeded();for(const key of ['begin','camp','recruit:mara','recruit:tamsin','market','gate','beacon:waygate:claimed','moor','moorTop','beacon:moor:claimed'])use(t,key);
+ const t=seeded();for(const key of ['begin','camp','recruit:mara','recruit:tamsin','market','gate','challenge:wayInvestigation','continue:wayInvestigation','beacon:waygate:claimed','moor','moorTop','challenge:moorPass','continue:moorPass','beacon:moor:claimed'])use(t,key);
  const w=t.get().frontier;assert.deepEqual(Array.from(w.active),[]);assert.equal(w.dominion,2);assert.equal(w.gold,50);
 });
 test('Public restoration rewards community trust and a smaller payment',()=>{
- const t=seeded();for(const key of ['begin','camp','market','gate','beacon:waygate:restored'])use(t,key);
- const w=t.get().frontier;assert.equal(w.beacons.waygate,'restored');assert.equal(w.gold,23);assert.equal(w.mercy,1);assert.equal(w.reputation.keepers,2);
+ const t=seeded();for(const key of ['begin','camp','market','gate','challenge:wayInvestigation','continue:wayInvestigation','beacon:waygate:restored'])use(t,key);
+ const w=t.get().frontier;assert.equal(w.beacons.waygate,'restored');assert.equal(w.gold,23);assert.equal(w.mercy,1);assert.equal(w.reputation.keepers,2+(t.get().checks.at(-1)?.success?1:0));
 });
 test('Companion skill bonus contributes only when ally is active and loyal',()=>{
  const t=seeded();for(const key of ['begin','camp','recruit:mara'])use(t,key);
@@ -87,7 +87,7 @@ test('World save normalization rejects counterfeit wealth, unknown allies and fo
 });
 test('Final choices have three distinct outcomes and cannot be reselected',()=>{
  for(const [choice,expected] of [['finalRestore','restore'],['finalRule','rule'],['finalFree','free']]){
-  const t=seeded('worldheart');const save=t.get();save.unlocked=16;save.frontier=t.freshWorld();save.storyResult=null;
+  const t=seeded('worldheart');const save=t.get();save.unlocked=16;save.frontier=t.freshWorld();if(choice==='finalRule')save.frontier.reputation.syndicate=2;save.storyResult=null;
   use(t,choice);assert.equal(t.get().stage,'roadFinale');assert.equal(t.get().frontier.ending,expected);assert.ok(t.worldScene().text.length>=4);
   use(t,'finalRestore');assert.equal(t.get().frontier.ending,expected);
  }
@@ -109,7 +109,7 @@ test('Battle defense and bonus healing each pause before another action',()=>{
  t.worldBattleAction('wb:dodge');assert.equal(b.next,'enemy');
 });
 test('Map content is rendered from recorded signal ownership and not user-supplied strings',()=>{
- const t=seeded();for(const key of ['begin','camp','market','gate','beacon:waygate:claimed'])use(t,key);
+ const t=seeded();for(const key of ['begin','camp','market','gate','challenge:wayInvestigation','continue:wayInvestigation','beacon:waygate:claimed'])use(t,key);
  const html=t.worldAtlas();assert.ok(html.includes('Privately'));assert.ok(html.includes('THE SHATTERED WATCHROAD'));assert.ok(!html.includes('<script'));
 });
 test('Known-map travel consumes supplies and reaches earlier optional quests without rewinding the campaign',()=>{
@@ -126,4 +126,227 @@ test('Map travel rejects future regions, paused results and finalized endings',(
 test('Exhausted ration travel costs HP but never silently kills the protagonist',()=>{
  const t=seeded('glassfen');const s=t.get();s.frontier=t.freshWorld();s.unlocked=12;s.inventory.rations=0;s.hp=2;
  t.worldMapTravel('wtravel:roadCamp');assert.equal(s.stage,'roadCamp');assert.equal(s.hp,1);assert.equal(s.frontier.day,2);
+});
+
+// v3.1 expansion: consequences, persistence, encounter gates and class progression.
+test('Every new waylight obstacle presents noncombat, payment and combat alternatives',()=>{
+ for(const [stage,chapter] of Object.entries({wayInvestigation:10,moorPass:11,fenCauseway:12,harborTribunal:13,cryptThreshold:14,citadelDebate:15,heartTrial:16})){
+  const t=seeded(stage);t.get().unlocked=chapter;t.get().frontier=t.freshWorld();
+  const sc=t.worldScene();assert.equal(sc.chapter,chapter);assert.ok(sc.text.length>=4,stage);
+  assert.ok(sc.choices.some(x=>x.key==='w:challenge:'+stage),stage);
+  assert.ok(sc.choices.some(x=>x.key.startsWith('w:encounter:')),stage);
+  assert.ok(sc.choices.some(x=>x.key==='w:bribe:'+stage),stage);
+ }
+});
+test('Each nonviolent challenge fails forward without a forbidden dice reroll',()=>{
+ for(const [stage,next] of Object.entries({wayInvestigation:'waygate',moorPass:'moorBeacon',fenCauseway:'fenBeacon',harborTribunal:'harborBeacon',cryptThreshold:'cryptArchive',citadelDebate:'citadelSpire',heartTrial:'worldheart'})){
+  const t=seeded(stage);t.get().unlocked=16;t.get().frontier=t.freshWorld();
+  use(t,'challenge:'+stage);assert.ok(t.get().frontier.done[stage+'Resolved'],stage);
+  assert.ok(t.worldScene().choices.every(x=>!x.key.startsWith('w:challenge:')),stage);
+  use(t,'continue:'+stage);assert.equal(t.get().stage,next,stage);
+ }
+});
+test('Homebrew lantern passage consumes a spark, not the inventory artifact',()=>{
+ const t=seeded('cryptThreshold');t.get().unlocked=14;t.get().frontier=t.freshWorld();
+ use(t,'lantern:cryptThreshold');assert.equal(t.get().lanternSparks,2);assert.equal(t.get().inventory.lantern,1);
+ assert.ok(t.get().frontier.done.cryptThresholdResolved);
+ use(t,'lantern:cryptThreshold');assert.equal(t.get().lanternSparks,2);
+});
+test('A paid passage deducts gold exactly once, without replaying the same transaction',()=>{
+ const t=seeded('fenCauseway');t.get().unlocked=12;t.get().frontier=t.freshWorld();
+ use(t,'bribe:fenCauseway');assert.equal(t.get().frontier.gold,10);
+ use(t,'bribe:fenCauseway');assert.equal(t.get().frontier.gold,10);
+});
+test('Act II travel consistently consumes one provision even on automatic chapter changes',()=>{
+ const t=seeded();for(const k of ['begin','camp','market'])use(t,k);
+ const s=t.get();const before=s.inventory.rations;use(t,'gate'); // intra-chapter scene, no travel day
+ assert.equal(s.inventory.rations,before);
+ use(t,'challenge:wayInvestigation');use(t,'continue:wayInvestigation');use(t,'beacon:waygate:restored');
+ const day=s.frontier.day;use(t,'moor');assert.equal(s.frontier.day,day+1);assert.equal(s.inventory.rations,Math.max(0,before-1));
+});
+test('Milestone levels 3 and 4 unlock across the expanded campaign and survive save validation',()=>{
+ const t=seeded('moorBeacon');const s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.frontier.beacons.moor='restored';s.level=2;
+ use(t,'fen');assert.equal(s.level,3);assert.ok(s.hp<=34);assert.equal(s.hitDice,3);
+ s.stage='cryptArchive';s.storyResult=null;s.frontier.done.archiveChoice=true;
+ use(t,'toCitadel');assert.equal(s.level,4);assert.equal(s.hitDice,4);
+ assert.equal(validateSave(JSON.parse(JSON.stringify(s))).level,4);
+});
+test('Wizard level-2 slots and Fighter Champion subclass progression are available from level 3',()=>{
+ const t=seeded('moorBeacon');const s=t.get();s.classId='wizard';s.level=2;s.frontier=t.freshWorld();s.frontier.beacons.moor='restored';s.unlocked=11;
+ use(t,'fen');assert.equal(s.level,3);assert.equal(s.frontier.slots2,2);
+ const f=seeded('moorBeacon');const fs=f.get();fs.classId='fighter';fs.unlocked=11;fs.frontier=f.freshWorld();fs.frontier.beacons.moor='restored';use(f,'fen');
+ assert.equal(fs.level,3);
+});
+test('Resting recovers resources and consumes time plus food or gold',()=>{
+ const t=seeded('northmoor');const s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.hp=6;s.hitDice=1;s.inventory.rations=1;
+ const before=s.frontier.day;use(t,'rest:long');assert.equal(s.hp,20);assert.equal(s.inventory.rations,0);
+ assert.equal(s.frontier.day,before+1);assert.equal(s.hitDice,2);
+ s.hp=4;s.frontier.gold=6;use(t,'rest:long');assert.equal(s.frontier.gold,1);assert.equal(s.hp,20);
+});
+test('Roadside foraging provides a non-paid recovery path but is limited to once per day',()=>{
+ const t=seeded('northmoor');const s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.inventory.rations=0;s.frontier.gold=0;
+ use(t,'rest:forage');assert.equal(s.inventory.rations,1);
+ use(t,'rest:forage');assert.equal(s.inventory.rations,1);
+});
+test('Port delivery pays only after a real journey to a named waypoint',()=>{
+ const t=seeded('harbor');const s=t.get();s.unlocked=13;s.frontier=t.freshWorld();
+ use(t,'portDelivery');assert.equal(s.frontier.gold,18);assert.equal(s.frontier.cargo,true);
+ t.worldMapTravel('wtravel:northmoor');assert.equal(s.frontier.cargo,false);
+ assert.equal(s.frontier.gold,32);assert.equal(s.frontier.done.portDelivery,true);
+});
+test('Companions can only change active roles at real, safe waystations',()=>{
+ const t=seeded('roadCamp');const s=t.get();s.unlocked=9;s.frontier=t.freshWorld();
+ use(t,'recruit:mara');use(t,'recruit:tamsin');use(t,'recruit:corvin');
+ s.stage='northmoor';t.worldPartyAction('wparty:corvin');assert.deepEqual(Array.from(s.frontier.active),['mara','tamsin']);
+ s.stage='waymarket';t.worldPartyAction('wparty:corvin');assert.deepEqual(Array.from(s.frontier.active),['tamsin','corvin']);
+});
+test('Every companion personal quest contains a meaningful moral choice and updates trust',()=>{
+ for(const [id,source,stage] of [['mara','northmoor','maraMemory'],['tamsin','glassfen','tamsinShelter'],['corvin','harbor','corvinLedger']]){
+  const t=seeded(source);const s=t.get();s.unlocked=15;s.frontier=t.freshWorld();s.frontier.recruited=[id];s.frontier.active=[id];
+  use(t,'personal:'+id);assert.equal(s.stage,stage);assert.ok(t.worldScene().text.length>=3);
+  use(t,'personalResolve:'+id+':support');assert.equal(s.frontier.trust[id],3);
+  use(t,'personalReturn:'+id);assert.equal(s.stage,source);
+ }
+});
+test('Bought armor increases AC; private investment consumes gold and is single use',()=>{
+ const t=seeded('waymarket');const s=t.get();s.unlocked=10;s.frontier=t.freshWorld();s.frontier.gold=35;
+ use(t,'buy:armor');assert.equal(s.frontier.gold,15);assert.equal(s.frontier.gear.armor,1);
+ use(t,'buy:armor');assert.equal(s.frontier.gold,15);
+});
+test('Worldheart restoration reconciles privately held beacons and actually pays the buyout',()=>{
+ const t=seeded('worldheart');const s=t.get();s.unlocked=16;s.frontier=t.freshWorld();
+ s.frontier.gold=80;s.frontier.dominion=4;for(const k in s.frontier.beacons)s.frontier.beacons[k]='claimed';
+ use(t,'finalRestore');assert.equal(s.stage,'roadFinale');assert.equal(s.frontier.gold,0);
+ assert.deepEqual(Array.from(Object.values(s.frontier.beacons)),['restored','restored','restored','restored']);assert.equal(s.frontier.dominion,0);
+});
+test('Without buyout or public mandate, public restoration remains locked',()=>{
+ const t=seeded('worldheart');const s=t.get();s.unlocked=16;s.frontier=t.freshWorld();s.frontier.gold=0;s.frontier.dominion=4;
+ for(const k in s.frontier.beacons)s.frontier.beacons[k]='claimed';
+ assert.ok(t.worldScene().choices.find(x=>x.key==='w:finalRestore').locked);
+ use(t,'finalRestore');assert.equal(s.stage,'worldheart');
+ assert.ok(t.worldScene().choices.some(x=>x.key==='w:prepareCommons'));
+});
+test('Private rule and local independence each reconcile all four beacon states',()=>{
+ for(const [choice,status] of [['finalRule','claimed'],['finalFree','independent']]){
+  const t=seeded('worldheart');const s=t.get();s.unlocked=16;s.frontier=t.freshWorld();s.frontier.reputation.syndicate=3;
+  use(t,choice);assert.equal(s.stage,'roadFinale');assert.ok(Object.values(s.frontier.beacons).every(x=>x===status));
+  const serialized=JSON.parse(JSON.stringify(s));assert.equal(validateSave(serialized).stage,'roadFinale');
+ }
+});
+test('New encounter imports preserve paused result, current enemy and turn expenditure',()=>{
+ const t=seeded('moorPass');const s=t.get();s.unlocked=11;s.frontier=t.freshWorld();
+ use(t,'encounter:moorWolves');assert.equal(s.frontier.battle.encounter,'moorWolves');
+ s.frontier.battle.phase='result';s.frontier.battle.next='enemy';s.frontier.battle.actionUsed=true;
+ s.frontier.battle.result={title:'A blow lands',story:'The wolves circle.',math:'d20 12'};
+ const t2=seeded('moorPass');t2.get().unlocked=11;t2.get().frontier=t2.normalizeWorld(JSON.parse(JSON.stringify(s.frontier)));
+ assert.equal(t2.get().frontier.battle.encounter,'moorWolves');assert.equal(t2.get().frontier.battle.actionUsed,true);
+});
+test('New SVG illustrations exist for each distinct expanded location',()=>{
+ for(const p of ['campfire','waycross','moor','fen','harbor','archive2','citadel','worldheart']){
+  const svg=fs.readFileSync(require('node:path').join(__dirname,'assets',p+'.svg'),'utf8');
+  assert.match(svg,/<svg /);assert.match(svg,/<\/svg>/);
+ }
+});
+
+test('Champion level 3 attacks can score critical on natural 19 in regional combat',()=>{
+ const t=seeded('moorPass'),s=t.get();s.unlocked=11;s.level=3;s.hp=28;s.frontier=t.freshWorld();
+ t.startWorldBattle('moorWolves');s.storyResult=null;s.frontier.battle.phase='player';
+ const prev=Math.random;Math.random=()=>.91;
+ try{t.worldBattleAction('wb:attack');assert.match(s.frontier.battle.result.math,/CRITICAL/);
+ assert.equal(s.frontier.battle.phase,'result');}finally{Math.random=prev;}
+});
+test('Rogue level 3 Fast Hands grants a tactical bonus action, preserving the next normal action',()=>{
+ const t=seeded('fenCauseway'),s=t.get();s.classId='rogue';s.level=3;s.hp=24;s.unlocked=12;s.frontier=t.freshWorld();
+ t.startWorldBattle('fenGuardian');s.storyResult=null;s.frontier.battle.phase='player';
+ t.worldBattleAction('wb:thief');assert.equal(s.frontier.battle.bonus,true);
+ assert.equal(s.frontier.battle.hidden,true);assert.equal(s.frontier.battle.phase,'result');
+ t.worldBattleAction('wb:continue');assert.equal(s.frontier.battle.phase,'player');
+ t.worldBattleAction('wb:attack');assert.equal(s.frontier.battle.actionUsed,true);
+});
+test('Wizard level 3 Shatter uses a separate level-2 spell slot and pauses the result',()=>{
+ const t=seeded('cryptThreshold'),s=t.get();s.classId='wizard';s.level=3;s.hp=17;s.unlocked=14;s.frontier=t.freshWorld();s.frontier.slots2=2;
+ t.startWorldBattle('cryptShade');s.storyResult=null;s.frontier.battle.phase='player';
+ t.worldBattleAction('wb:shatter');assert.equal(s.frontier.slots2,1);
+ assert.match(s.frontier.battle.result.math,/Shatter/);assert.equal(s.frontier.battle.phase,'result');
+});
+test('Fighter Action Surge is a once-per-rest extra non-Magic action within one round',()=>{
+ const t=seeded('moorPass'),s=t.get();s.level=3;s.unlocked=11;s.frontier=t.freshWorld();
+ t.startWorldBattle('moorWolves');s.storyResult=null;s.frontier.battle.phase='player';
+ const prev=Math.random;Math.random=()=>.2;
+ try{t.worldBattleAction('wb:attack');assert.equal(s.frontier.battle.next,'surge');
+ t.worldBattleAction('wb:continue');assert.equal(s.frontier.battle.actionUsed,true);
+ t.worldBattleAction('wb:surge');assert.equal(s.actionSurge,0);
+ t.worldBattleAction('wb:continue');assert.equal(s.frontier.battle.phase,'player');
+ assert.equal(s.frontier.battle.actionUsed,false);assert.equal(s.frontier.battle.extra,true);
+ t.worldBattleAction('wb:attack');assert.notEqual(s.frontier.battle.next,'surge');
+ }finally{Math.random=prev;}
+});
+test('Winning an expansion encounter unlocks only its own obstacle and pays its reward once',()=>{
+ const t=seeded('wayInvestigation'),s=t.get();s.unlocked=10;s.frontier=t.freshWorld();
+ t.startWorldBattle('gateRaid');s.storyResult=null;s.frontier.battle.phase='result';
+ s.frontier.battle.next='victory';s.frontier.battle.result={title:'Last blow',story:'The guard surrenders',math:''};
+ t.worldBattleAction('wb:continue');assert.equal(s.frontier.battle,null);
+ assert.ok(s.frontier.done.wayInvestigationResolved);assert.equal(s.frontier.gold,25);
+ assert.equal(s.frontier.encountersWon,1);
+ assert.equal(s.frontier.done.moorPassResolved,undefined);
+});
+test('A hero fighting without companions retreats without inventing an absent rescuer',()=>{
+ const t=seeded('heartTrial'),s=t.get();s.unlocked=16;s.frontier=t.freshWorld();
+ t.startWorldBattle('heartEcho');s.storyResult=null;s.frontier.battle.phase='result';
+ s.frontier.battle.next='defeat';s.frontier.battle.result={title:'Fallen',story:'The hero staggers.',math:''};
+ t.worldBattleAction('wb:continue');assert.equal(s.frontier.battle,null);
+ assert.match(s.storyResult.body,/behind a fallen marker/);
+ assert.doesNotMatch(s.storyResult.body,/companion draws/);
+});
+test('An encounter can be fled without magically resolving the unresolved location',()=>{
+ const t=seeded('heartTrial'),s=t.get();s.unlocked=16;s.frontier=t.freshWorld();
+ t.startWorldBattle('heartEcho');s.storyResult=null;s.frontier.battle.phase='player';
+ t.worldBattleAction('wb:retreat');assert.equal(s.frontier.battle.phase,'result');
+ t.worldBattleAction('wb:continue');assert.equal(s.frontier.battle,null);
+ assert.equal(s.frontier.done.heartTrialResolved,undefined);
+});
+test('Current save parser rejects unknown future stages while accepting all v3.1 scenes',()=>{
+ const t=seeded();const base=JSON.parse(JSON.stringify(t.get()));
+ for(const stage of ['wayInvestigation','moorPass','maraMemory','fenCauseway','tamsinShelter','harborTribunal','corvinLedger','cryptThreshold','citadelDebate','heartTrial']){
+  const saved={...base,stage};assert.equal(validateSave(saved).stage,stage);
+ }
+ assert.throws(()=>validateSave({...base,stage:'madeUpStoryStage'}));
+});
+test('Old late Act II saves are migrated to levels 3–4 without resetting their choices',()=>{
+ const t=seeded();const raw=JSON.parse(JSON.stringify(t.get()));raw.stage='citadel';raw.level=2;raw.unlocked=15;
+ raw.frontier=t.freshWorld();raw.frontier.beacons.waygate='claimed';raw.frontier.gold=39;
+ const upgraded=t.upgradeSave(raw);
+ assert.equal(upgraded.level,4);assert.equal(upgraded.frontier.gold,39);
+ assert.equal(upgraded.frontier.beacons.waygate,'claimed');assert.equal(upgraded.inventory.lantern,1);
+});
+test('New world combat action state survives normalization of an imported paused save',()=>{
+ const t=seeded('fenCauseway'),w=t.freshWorld();w.battle={active:true,origin:'fenCauseway',encounter:'fenGuardian',enemyHp:16,enemyMax:23,enemyAc:13,round:3,phase:'result',guard:false,bonus:true,started:true,actionUsed:true,extra:true,allyUsed:true,next:'enemy',result:{title:'Attack',story:'Damage',math:'d20'}};
+ const norm=t.normalizeWorld(w);assert.equal(norm.battle.phase,'result');assert.equal(norm.battle.encounter,'fenGuardian');assert.equal(norm.battle.actionUsed,true);assert.equal(norm.battle.extra,true);
+ assert.equal(norm.battle.allyUsed,true);
+});
+
+
+test('Foraging uses a Wisdom Survival roll rather than the previously mismatched Perception skill',()=>{
+ const t=seeded();for(const step of ['begin','camp'])use(t,step);
+ assert.equal(t.skillBonus('survival'),1);
+ use(t,'rest:forage');
+ assert.equal(t.get().checks.at(-1).name,'Wisdom (Survival)');
+ assert.ok(t.get().frontier.done['forageDay'+t.get().frontier.day]);
+});
+test('A level-3 wizard sheet shows both spell-slot levels, subclass magic and Scholar expertise',()=>{
+ const t=seeded();const s=t.get();s.classId='wizard';s.level=3;s.slots=4;s.scholarSkill='arcana';s.frontier={...t.freshWorld(),slots2:2};
+ const html=t.renderSheet();
+ assert.match(html,/Level-2 spell slots/);assert.match(html,/Shatter/);assert.match(html,/Scholar Expertise/);
+ assert.equal(t.skillBonus('arcana'),7);
+});
+test('A level-4 Fighter sheet retains Action Surge and shows Champion',()=>{
+ const t=seeded();const s=t.get();s.level=4;s.actionSurge=1;s.secondWind=3;
+ const html=t.renderSheet();
+ assert.match(html,/Action Surge/);assert.match(html,/Champion/);
+ assert.match(html,/level 1–4 practice builds/i);
+});
+test('A level-3 Rogue sheet lists updated Sneak Attack and Cunning Action',()=>{
+ const t=seeded();const s=t.get();s.classId='rogue';s.level=3;
+ const html=t.renderSheet();
+ assert.match(html,/Sneak Attack: \+2d6/);assert.match(html,/Cunning Action/);assert.match(html,/Fast Hands/);
 });

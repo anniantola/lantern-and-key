@@ -1,210 +1,67 @@
-# Lantern & Key v3.0 — The Shattered Watchroad
+# Lantern & Key v3.1 — The Shattered Watchroad: Expanded Campaign
 
-This release adds **Act II: an eight-chapter regional campaign (Chapters 9–16)** on top of the original eight-chapter tutorial. It preserves the tutorial, all story routes, the action-result/Continue sequence, fixed bottom navigation, original JSON save format, chapter replay protection and GitHub Pages deployment.
+A mobile-friendly, offline-capable **16-chapter, single-player, browser-based D&D learning adventure**. Chapters 1–8 form the introductory tutorial; Chapters 9–16 form the larger Watchroad campaign. No paid services or AI API keys are required. This is an educational adaptation of selected SRD 5.2.1 (2024) principles, **not** a complete tabletop D&D rules engine.
 
-## What is included
+## v3.1: Substantial expansion of the Watchroad campaign
 
-- A regional map showing the interconnected waylights and their public/private states; discovered regions reveal progressively rather than spoiling future chapters. Map travel is available between discovered waypoints, consumes one day and a ration (or 2 HP if provisions run out), and never teleports the player without an explicit choice. The Map also includes a persistent quest ledger.
-- Eight connected new chapters: the blue map, a caravan market, North Moor, Glassfen, Saltmere Harbor, the buried archives, the Citadel and the Worldheart.
-- Three fully written potential companions with ideals, trust, unique skill aid, recruitment, active two-person party selection, and the possibility of disagreement or leaving active service.
-- Persistent gold, one-time paid quests, purchasable potions/rations, competing financial and moral benefits from beacon decisions, and a relief donation option.
-- Public restoration, personal claim and local independence are supported with distinct outcomes. What happens depends on decisions, not a cosmetic alignment slider.
-- Trade, investigation and local-aid choices offer multiple ways to progress.
-- New World Map and Party tabs available persistently on phone and desktop, and Act II replay checkpoints separate from the main campaign.
-- Data stored under optional `frontier` JSON field and normalized on import; legacy saves continue from the Chapter 8 epilogue.
+The original eight tutorial chapters and existing save format are preserved. The expanded second act includes:
 
-## Important scope and rules notes
+- **Seven new major encounters** in the story flow. Each has investigation, negotiation/payment or Lantern approaches, plus a possible combat resolution. Failed checks advance the plot but impose a cost rather than producing an impossible state.
+- **Nine optional combat encounters in Act II** in total, across the earlier two fights and seven newly added obstacles. Combat retains prominent HP, separately paused action results, and Continue buttons.
+- **Three companion personal quests** with relationship-sensitive decisions, plus additional campfire and chapter conversations. Allies can contribute to skill checks and fights, change loyalty, or refuse to support an exploitative approach.
+- **Milestone advancement to levels 3 and 4.** Fighter gains a simplified Champion critical mechanic and level-4 preset Strength improvement; Rogue gains Sneak Attack 2d6, a tutorial Thief distraction, and preset Dexterity improvement; Wizard gains second-level spell slots, Shatter, and preset Intelligence improvement. These are limited, labeled instructional implementations; see `RULES-AUDIT.md`.
+- **More substantial economy:** wages, ration and travel costs, short/long rests, foraging, potions, armor, spell focus, boots, bought information, social investments, and earned delivery payments. The shipping reward arrives when goods actually reach their destination.
+- **A blue-line regional map** with revisitable waypoints and a quest ledger. Moving between known waypoints costs time and resources. Party swaps are restricted to safe, inhabited locations.
+- **Stronger endings:** earlier public or private waylight claims are honored. A character who changes course may need compensation, a mandate, or a charter; the conclusion updates ownership state rather than contradicting previous choices.
+- **Eight new locally bundled, original SVG scenes** in the existing `assets/` folder: `campfire.svg`, `waycross.svg`, `moor.svg`, `fen.svg`, `harbor.svg`, `archive2.svg`, `citadel.svg`, and `worldheart.svg`.
+- **The Last Lantern remains relevant.** Keeping it unlocks special solutions and uses its limited sparks. A previous *Dangerous Souvenir* save, including one that incorrectly recorded `lantern: 0`, is still migrated so the item appears in your Pack.
+- **Story fixes:** failure text respects actual discovered clues, a solo defeat does not invent a rescuer, and the finale reconciles previously claimed lights. Result screens, persistent bottom tabs and isolated chapter replay are retained.
 
-The second act is a **guided, authored adventure** for a level-2 character, not a general-purpose AI Dungeon Master or a complete SRD combat engine. Its regional beacons, special companions, faction reputations and economic system are **original campaign mechanics**, not official D&D rules. The map includes an explicit button-based waypoint travel system rather than unconstrained free movement; travel consumes time and supplies, and only visited waypoints are unlocked. Companion skill help is a fixed +2 homebrew bonus during relevant campaign checks.
+### Playing and saving
 
-## Updating the GitHub Pages repository
+The game saves automatically in your browser. You can export and import JSON from **Settings**. Export a backup before updating or removing an installed app. The v3.1 package is designed to migrate valid v3.0 and older tutorial saves without resetting the character or lantern decisions. Existing story branches remain selectable only when appropriate.
 
-Upload/replace **`index.html`, `game.js`, `logic.js`, `style.css`, `sw.js`, `README.md`, `RULES-AUDIT.md`, `tests-core.cjs`, `tests-world.cjs`**, in the repository root. The existing `.github/workflows/deploy.yml` works without changes. The entire game can alternatively be uploaded from the complete ZIP. Export a JSON backup under Settings before updating.
+### Install the update on GitHub Pages
 
-## Testing
+Use `lantern-and-key-v3.1-update.zip` if you're updating your existing v3.0 repository. At your repository root, **replace**:
 
-Run `node --check game.js`, `node --check logic.js`, and `node --test tests-core.cjs`. The existing workflow runs this command; it imports `tests-world.cjs` automatically, so no workflow changes are necessary. The suite includes previous core rules and story-safety tests, plus Act II progression, save normalization and economy guards.
+- `game.js`
+- `logic.js`
+- `tests-world.cjs`
+- `sw.js`
+- `README.md`
+- `RULES-AUDIT.md`
 
----
+In the existing `assets` folder, **add** the eight SVG illustrations named above. You do not need to create a new directory. Existing `index.html`, `style.css`, `manifest.webmanifest`, `tests-core.cjs`, the existing artwork, and `.github/workflows/deploy.yml` remain unchanged.
 
-# Lantern & Key v2.5.1 — Story Continuity Patch
+Alternatively, `lantern-and-key-v3.1-complete.zip` contains the full site and workflow. Upload the extracted contents, including the hidden `.github` directory. GitHub Pages **Source → GitHub Actions** remains the correct setting. Commits to `main` run the tests and deploy if they pass.
 
-This is a **spoiler-free corrective update** to the eight-chapter Watchroad story. It preserves the v2.5 expanded narrative, all choices, the fixed mobile navigation, chapter replay and JSON save compatibility.
+**Important:** All six changed root files and the eight new SVGs must be deployed together. Otherwise, a browser may cache an older version or show missing artwork. Your existing service worker will offer the updated version without forcibly reloading an active game.
 
-The story now respects item ownership and NPC states, time spent resting versus traveling, the consequences of a previous refusal, and clues the character has actually examined. Equipment left behind is no longer carried in the Pack. Deception and intimidation now affect the council's Persuasion check; evidence can offset that mistrust. Later dialogue does not presume you discovered information in an optional scene.
+### Test locally
 
-For older saves, the app automatically reconciles rope already used at the bridge **once**, and recovers a previously failed negotiation from the journal when possible. These migrations do not reset the campaign or the lantern.
+With Node 22+:
 
-**To update an existing GitHub Pages app:** Replace the following five root files from the update ZIP: `game.js`, `tests-core.cjs`, `tests-world.cjs`, `sw.js`, `README.md`, `RULES-AUDIT.md`. No new folders, artwork, or workflow changes. Back up your current save JSON first. GitHub Actions will run the expanded 74-test suite before publishing.
+```bash
+node --check game.js
+node --check logic.js
+node --check sw.js
+node --test tests-core.cjs
+```
 
----
+`tests-core.cjs` loads `tests-world.cjs`. The v3.1 release passed **125 automated tests** covering existing mechanics and new campaign gates, rest and resource management, companions, quests, encounter combat, save normalization, class advancement and endings. Additional Chromium walkthroughs passed on 320 px, 390 px and 1024 px viewports for the public-route finale and a separate private-route finale, including resuming paused combat after reload. This is extensive targeted coverage, not a formal proof of every state combination. An installed Android PWA and service-worker update have **not** been tested on a physical phone in this environment.
 
-# Version 2.5.0 — The Watchroad (expanded narrative)
+### Technical outline
 
-The full eight-chapter adventure now has much fuller scene descriptions, connected travel interludes, recurring places and symbols, character-sensitive narration, and a **Field notes from the watchroad** section inside Journal. All new material appears only when you reach the relevant chapter; later chapters and alternative endings are not exposed prematurely.
+- `index.html` — HTML shell, scripts and PWA manifest
+- `game.js` — story, UI, game-state transitions, companion and combat encounters
+- `logic.js` — shared mechanics and safe save-file validation
+- `style.css` — mobile and desktop styling, persistent navigation
+- `sw.js` — offline asset caching and safe updates
+- `assets/` — bundled artwork and app icons
+- `tests-core.cjs`, `tests-world.cjs` — automated regression tests
+- `.github/workflows/deploy.yml` — tests then publishes to GitHub Pages
 
-**Save compatibility:** No save schema changes. All quest inventory, battle systems, chapter replay, result/Continue pauses and existing branches remain in place. Previous Dangerous Souvenir saves still recover The Last Lantern.
+### Rules and attribution
 
-**Update existing GitHub Pages project:** Replace the four root files `game.js`, `style.css`, `sw.js`, and `README.md`. There are no new folders, assets or workflow changes. Export your save JSON before updating as a precaution.
-
----
-
-# Lantern & Key — Complete learning campaign (v2.5.0)
-
-**A playable, offline-capable, single-player fantasy adventure for first-time tabletop D&D players.** Designed to work on Android, desktop, and other modern browsers via GitHub Pages. This version expands the previous three-chapter demonstration to **eight connected chapters** with authentic beginner-friendly 2024 / SRD 5.2.1 rules instruction.
-
-## v2.5.0 — Hide completed one-time story actions
-
-- Single-use investigations, persuasion approaches, and magical demonstrations disappear from the next choice selection once resolved, whether the roll succeeds or fails.
-- The result screen remains visible until Continue is selected. Navigation, resting, healing consumables and repeatable Practice Arena actions are unchanged.
-- Older saved games infer prior attempts from recorded flags and outcomes, without requiring a restart.
-- The tavern's conversation links disappear after their available one-time dialogue is exhausted.
-
-## v2.5.0 — Story consistency and consequence fixes (spoiler-free)
-
-- Choices now reflect the items you actually collected; there is a meaningful alternative to the key-dependent resolution.
-- Spending a spark to protect your campsite has lasting protection, even if a later search fails.
-- An interrupted Long Rest cannot automatically succeed at the same unsafe campsite. You can find shelter or relocate at a cost.
-- Village verdicts, investigation clues and NPC dialogue match the checks and evidence you actually obtained.
-- Travel and bridge descriptions adapt to the path you took.
-- Final decisions have distinct narrative consequences, and old saves with a failed council verdict are corrected from their journal.
-- Automated narrative-state tests run as part of the existing GitHub Actions checks.
-
-**Save compatibility:** Existing v2.4 and earlier JSON saves remain supported; main and replay slots remain separate. No additional permissions, workflow changes, or asset folders are required.
-
-## v2.4 — The Last Lantern matters (no story spoilers)
-
-**The most important compatibility fix:** If an older save records the **Dangerous Souvenir** / `ending: "take"` decision, the game guarantees **The Last Lantern ×1** appears in the Pack — even when an older `inventory.lantern` field explicitly says `0`. This applies to local saves, imported JSON backups, and isolated replay saves. Very early saves with only the Dangerous Souvenir journal entry are also recovered. The update will not take away the lantern after you have kept it, and does not overwrite your campaign choices.
-
-**New choices without spoilers:** The lantern now influences multiple later chapters, including encounters, resource use and a consequential late-campaign decision. It has **three sparks** to begin with; you choose when (and whether) to spend them. A full Long Rest restores one spark, up to three. Opportunities to learn about the item may also restore one. **The item itself is never consumed**, even if you spend all its sparks.
-
-Its abilities are clearly labeled as an **original homebrew quest artifact**; they are not official SRD spells or class features. Players who restored or returned the lantern still have fully playable story routes and meaningful decisions. Old saves that already reached the campaign ending can access the new artifact continuation without restarting their character or losing earlier progress.
-
-**Update your existing GitHub Pages repository:** Replace the seven existing **root-level** files `game.js`, `logic.js`, `style.css`, `sw.js`, `tests-core.cjs`, `tests-world.cjs`, `README.md` and `RULES-AUDIT.md`. No new folders, images, icons, or workflow changes. Leave `.github/workflows/deploy.yml` as-is. Export a JSON save backup before updating; your existing saves use the same storage key and JSON schema.
-
-**Testing:** The automated suite now covers keeping and migrating the lantern, including old saves containing `lantern: 0`, importing those saves, spent resources, decision branches, and preserving the item throughout the campaign. Run `node --test tests-core.cjs tests-world.cjs` with Node 22+.
-
----
-
-## v2.3 — Stability, rules & learning update
-
-**Before upgrading:** use **Settings → Export save as JSON**. This version preserves the `lantern-and-key.save.v1` schema and v2.2 progress. Older imported saves are validated more strictly; malformed files are rejected instead of rendering potentially unsafe data.
-
-### Changes
-
-- **Safer importing:** bounded, sanitized save objects, validation of dice and combat state, a pre-import backup, and a recovery screen if local saved data becomes invalid. Never import JSON backups from unknown sources.
-- **Protected chapter replay:** Chapters → Replay creates a separate replay save without touching the original campaign. Return with **Chapters → Return to main campaign**. The main and replay timelines have separate storage slots.
-- **Corrected tactical movement:** chooses a traversable least-cost path across 5-ft squares, accounts for difficult terrain along the route and reactions along the path, supports diagonal adjacency, and displays the chosen route in results. The map still uses simplified tutorial targeting and cover.
-- **Ranged attacks:** apply disadvantage when an eligible hostile creature is within 5 ft; advantage and disadvantage cancel. Fighter Action Surge cannot be spent to cast a Magic action. Dodge allows moving afterward on the bridge.
-- **Practice combat:** your action and the sentry response have separate Continue screens; the simulated turn has Action / Bonus Action distinctions and level-2 Action Surge remains part of the same turn.
-- **Resting:** each Short Rest offers repeated Hit Die rolls, decided one at a time. Features that recharge during the rest are still tracked.
-- **Learning journal:** each discovered lesson offers a two-answer knowledge check. A separate "mastered" marker distinguishes practice from merely finding a lesson.
-- **Chapter 8:** new Beacon Test encounter after reaching level 2, with Fighter Action Surge, Rogue Cunning Action, Wizard magic and a nonviolent skill-based solution. It does not replace the existing ending.
-- **Offline reliability:** web pages, JS and CSS check the network first and fall back to cached copies while offline. A new service-worker version never forces a reload; the game presents its existing update prompt.
-- **Phone readability:** slightly larger bottom-tab labels. External Google Fonts removed so the app uses the same system-font fallbacks online and offline.
-- **Build safety:** a dependency-free `node --test` suite runs in GitHub Actions before GitHub Pages deployment. The game's rules, routing, and import validator are partly separated into `logic.js` for independent testing.
-
-### Update an existing GitHub Pages repository from v2.2
-
-At the **repository root**, replace `game.js`, `style.css`, `sw.js`, `index.html`, `README.md`, and `RULES-AUDIT.md`. Upload **two new root-level files**, `logic.js` and `tests-core.cjs`, `tests-world.cjs`. In your existing `.github/workflows` folder replace **`deploy.yml`**. Commit to `main`; **Settings → Pages → Source** stays **GitHub Actions**. **No new asset folders or illustrations** are required.
-
-**Important:** `logic.js` must be uploaded together with the modified `index.html` and `game.js`; the new version will not start without it. The `tests-core.cjs`, `tests-world.cjs` file is also needed for the updated deployment workflow to pass. If you prefer a clean replacement, use the *complete* package; it includes all preexisting assets and GitHub Actions files.
-
-For local test runs with Node 22+: `node --test tests-core.cjs tests-world.cjs` and `node --check game.js`.
-
-**Limitations:** This remains a guided 8-chapter educational simulator, not a full virtual tabletop or AI Dungeon Master. The bridge has a small tutorial map and simplified enemy tactics. Automated coverage exercises the shared rules and import safety, with additional manual browser walkthroughs, but does not exhaustively verify all possible story/state combinations or every device's PWA caching.
-
----
-
-## v2.3.2 — Lantern inventory correction
-
-When you choose **Keep the mysterious lantern** in Chapter 3, **The Last Lantern** now appears as a unique, nonconsumable quest item in the **Pack** tab. The story in Chapters 4 and 8 acknowledges carrying it. Saves created with v2.3.1 or earlier that already record `ending: "take"` are corrected on load, without restarting or importing again. In v2.4, this story artifact also has optional homebrew abilities with limited resources.
-
-**Update existing GitHub Pages installations:** Replace the root-level `game.js`, `tests-core.cjs`, `tests-world.cjs`, `sw.js`, and `README.md`. The existing deployment workflow, artwork, and other source files can stay unchanged. Export a save backup before any update as usual.
-
-## What's new in v2.0 (included in v2.3)
-
-| Chapter | Setting | Core lesson |
-| --- | --- | --- |
-| 1. The Forgotten Tavern | A mysterious traveler and a cellar | Character introductions, skills, conversations and decisions |
-| 2. Beneath the Floorboards | A trapped corridor | Investigation, difficulty classes, Dexterity saves |
-| 3. The Chamber of Echoes | A lantern and a guardian | Initiative, HP, AC, attacks, magic, combat and diplomacy |
-| 4. A Night in Blackwood | A forest camp | Short and Long Rests, Hit Dice, healing, interrupted rests, supplies |
-| 5. The Broken Crossing | A guarded bridge | Tactical 5-ft grid, movement, distance, Dash, Dodge, Disengage, cover, difficult terrain, opportunity attacks, ranged and melee attacks |
-| 6. Secrets of Briar Hollow | A village dispute | Insight, persuasion, truthfulness, clues, NPC trust and social consequences |
-| 7. The Arcane Trial | An enchanted school | Spell attacks vs. enemy saving throws, slots, cantrips, concentration and effects |
-| 8. Becoming an Adventurer | A mountain beacon | Level-2 advancement, class features, reflection and further practice |
-
-Each story choice and combat action pauses on a **readable result card** with a **Continue** button. Your character's wounds, items, spells, discoveries and decisions carry between chapters. You can cross the bridge by negotiation, clever item use or tactical battle.
-
-### Extra tools
-
-- **Chapter checkpoints:** Replay any chapter for which your save has a recorded entry checkpoint. Replay rewinds the story from that point; export your current save first to preserve that timeline. Previously completed chapters without historical checkpoints may not be replayable from a legacy imported save.
-- **Learning journal:** Check off concepts encountered, revisit explanations, see progress through the curriculum.
-- **Interactive inventory:** Drink a healing potion, consume rations, toggle a torch, swap weapon, use a smoke pellet where appropriate, and inspect quest items.
-- **Class differences:** The preset Fighter, Rogue, and Wizard builds have unique abilities and resources. At level 2, try **Action Surge/Tactical Mind**, **Cunning Action**, or **Scholar Expertise** respectively. Use the Practice arena after advancing to test new mechanics.
-- **Practice arena:** Repeat skill checks, dummy combat, and spell/saving throw demonstrations **without consuming campaign resources or changing your story**.
-- **Guided and Tabletop modes:** Guided reveals target DCs and tutorial reminders in advance. Tabletop hides some hints/target numbers until after the action, but keeps prewritten choices and a fully explained result. **Neither mode is an open-ended AI Dungeon Master.**
-- **Character sheet:** Current HP, max HP, hit dice, skills, spells, class feature uses, and the level-2 specialization.
-- **Save and install:** Auto-save in local browser storage; export/import JSON under Settings. Settings also has the optional Android PWA installation helper.
-
-**Phone navigation (v2.2):** All eight adventure tools are permanently visible in a two-row bottom navigation bar: Story, Character, Pack, Lessons, Chapters, Practice, Journal and Rules. On desktop the same tools appear below the header. Each opens directly; **Story** returns to the game. The large **⚙ Settings** button stays in the top-right and contains only install guidance, teaching mode, save export/import and reset. The dialog also has a clear **← Story** control. The bottom bar respects phone safe areas and does not cover story actions.
-
-## Update from v2.1 to v2.2 (persistent tab bar)
-
-Replace these root-level files: `game.js`, `style.css`, and `sw.js`. **No new folders or artwork.** On phones the eight-button bottom bar stays available while viewing Story, Character, Pack, Lessons, Chapters, Practice, Journal and Rules. You can switch straight from one to another. The selected tab is highlighted, Settings stays in the header, and returning to Story does not intentionally scroll you to the top. The tab's content scrolls in the area between the header and bottom bar, so no controls should be hidden. Existing saves are unaffected.
-
-## Update from v2.0 to v2.1 (navigation only)
-
-Replace these four root-level files in your existing GitHub repository: `game.js`, `style.css`, `sw.js`, `README.md`. No assets or folder changes. Your GitHub Actions workflow deploys automatically. The save key and format remain unchanged, so your progress is preserved; exporting a JSON backup first is still recommended. The complete v2.1 package includes all files for a fresh installation.
-
-## Upgrade from v1.3 (GitHub website, no folder upload required)
-
-If upgrading directly from v1.3, use **`lantern-and-key-v2.2-complete.zip`** so the new chapters and artwork are included:
-
-1. Download and extract the update ZIP.
-2. In the repository root, replace **`game.js`**, **`style.css`**, **`sw.js`** and **`README.md`**. Upload the optional reference file **`RULES-AUDIT.md`** to the root.
-3. In your already-existing **`assets`** folder upload the **five new SVGs**: `forest.svg`, `crossing.svg`, `village.svg`, `arcane.svg`, `summit.svg`.
-4. Commit to `main`. The existing **GitHub Actions** workflow deploys automatically. You do not need to change `.github`, `index.html`, or `manifest.webmanifest`.
-5. Open the site. When the game notices an update, use its **Update when ready** button. If the game still looks old, close and reopen it, and check that all new assets were uploaded.
-
-The **complete ZIP** is suitable for a fresh repository or a full replacement. It includes the same GitHub Actions workflow, all original and added assets, manifest, and app icons. The archive has no parent folder, so upload its contents to the repository root.
-
-**Important:** Before a major update, make a safety copy using **Settings → Export save as JSON**. v2.0 intentionally keeps the existing `lantern-and-key.save.v1` local-storage key and `version: 1` JSON data format so older saves remain loadable. The *game* is v2.3; the **save schema** stays v1 for compatibility.
-
-## GitHub Pages configuration — GitHub Actions
-
-1. Open your repo, e.g. `https://github.com/anniantola/lantern-and-key`.
-2. Select **Settings → Pages → Build and deployment → Source: GitHub Actions**. Do **not** choose Deploy from a branch.
-3. Commit files to `main`; check **Actions → Deploy GitHub Pages** for deployment.
-4. Visit `https://anniantola.github.io/lantern-and-key/` using HTTPS.
-
-The archive includes `.github/workflows/deploy.yml`; leave it where it is.
-
-## Technical notes
-
-- Vanilla HTML, CSS, SVG and JavaScript; no frontend framework, backend, subscriptions or AI API keys.
-- The service worker caches local app assets, including the five new scene illustrations. New versions do not force-reload the page while you play; updates prompt you to reload.
-- Local auto-save and JSON import/export support mobile-to-desktop transfer.
-- Opening `index.html` directly as a `file://` URL may lack PWA/offline functionality. Use GitHub Pages or a local HTTP server: `python3 -m http.server 8000`.
-- Mobile home-screen installation and reinstall behavior is controlled by the browser/OS. Export a save before clearing storage or uninstalling.
-
-## Scope and rules accuracy
-
-This is an **introductory teaching simulator**, not a complete tabletop game engine. It uses an original setting, predefined choices and three **curated starter builds**, not full character creation, ancestry, backgrounds, feats, all spells or subclasses. Chapter-3 combat is an abstract encounter; Chapter-5 combat has a limited tactical grid. Battle outcomes, single-use items and certain NPC attitudes use deliberate encounter-specific rulings. Characters do not use death-saving throws at 0 HP; they can return to a chapter checkpoint. The smoke pellet is explicitly a custom training item, **not** an SRD item.
-
-See [RULES-AUDIT.md](RULES-AUDIT.md) for the audited rule-by-rule choices, fixes and simplifications. Mechanically this version follows the **2024-era SRD 5.2.1**, **not** older 2014 rules. Always defer to your tabletop DM and the published rules for actual sessions.
-
-### License and attribution
-
-Game mechanics adapted from the **System Reference Document 5.2.1**, © Wizards of the Coast LLC, available under **Creative Commons Attribution 4.0 International (CC BY 4.0)**. Sources: https://www.dndbeyond.com/srd and https://creativecommons.org/licenses/by/4.0/ . Original adventure, design and illustrations are an independent fan/educational work. **Not an official Dungeons & Dragons product; not affiliated with or endorsed by Wizards of the Coast.** Rules are summarized and simplified, not copied wholesale.
-
-
-## v2.3.1 corrective release
-
-- Rejects Warden, bridge, and beacon saves whose required encounter objects are missing or whose paused result cannot be continued. Imports fail safely before replacing any progress.
-- Importing while replaying now backs up the **main** campaign slot rather than the temporary replay, so Restore pre-import restores the correct timeline.
-- Normal Dash and Cunning Action: Dash now each add the character's 30-foot Speed instead of resetting the movement allowance; both together provide 90 feet (18 grid units) on this tutorial map.
-- Second Wind's die notation shows the current Fighter level; the beacon enemy's attack math shows disadvantage dice only when rolled.
-- Adds regression tests for encounter saves, stacked Dash movement, and importing during chapter replay.
-- Existing save schema, fixed bottom tabs, app installation, and GitHub Actions workflow remain unchanged.
+Based in part on the [System Reference Document 5.2.1](https://www.dndbeyond.com/srd) from Wizards of the Coast, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Original lore, Last Lantern magic, companion abilities and some simplified encounter mechanics are homebrew. This project is independent and not endorsed by Wizards of the Coast. See `RULES-AUDIT.md` for known omissions and instructional simplifications.
