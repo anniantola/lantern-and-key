@@ -1,3 +1,32 @@
+# Lantern & Key v3.0 — The Shattered Watchroad
+
+This release adds **Act II: an eight-chapter regional campaign (Chapters 9–16)** on top of the original eight-chapter tutorial. It preserves the tutorial, all story routes, the action-result/Continue sequence, fixed bottom navigation, original JSON save format, chapter replay protection and GitHub Pages deployment.
+
+## What is included
+
+- A regional map showing the interconnected waylights and their public/private states; discovered regions reveal progressively rather than spoiling future chapters. Map travel is available between discovered waypoints, consumes one day and a ration (or 2 HP if provisions run out), and never teleports the player without an explicit choice. The Map also includes a persistent quest ledger.
+- Eight connected new chapters: the blue map, a caravan market, North Moor, Glassfen, Saltmere Harbor, the buried archives, the Citadel and the Worldheart.
+- Three fully written potential companions with ideals, trust, unique skill aid, recruitment, active two-person party selection, and the possibility of disagreement or leaving active service.
+- Persistent gold, one-time paid quests, purchasable potions/rations, competing financial and moral benefits from beacon decisions, and a relief donation option.
+- Public restoration, personal claim and local independence are supported with distinct outcomes. What happens depends on decisions, not a cosmetic alignment slider.
+- Trade, investigation and local-aid choices offer multiple ways to progress.
+- New World Map and Party tabs available persistently on phone and desktop, and Act II replay checkpoints separate from the main campaign.
+- Data stored under optional `frontier` JSON field and normalized on import; legacy saves continue from the Chapter 8 epilogue.
+
+## Important scope and rules notes
+
+The second act is a **guided, authored adventure** for a level-2 character, not a general-purpose AI Dungeon Master or a complete SRD combat engine. Its regional beacons, special companions, faction reputations and economic system are **original campaign mechanics**, not official D&D rules. The map includes an explicit button-based waypoint travel system rather than unconstrained free movement; travel consumes time and supplies, and only visited waypoints are unlocked. Companion skill help is a fixed +2 homebrew bonus during relevant campaign checks.
+
+## Updating the GitHub Pages repository
+
+Upload/replace **`index.html`, `game.js`, `logic.js`, `style.css`, `sw.js`, `README.md`, `RULES-AUDIT.md`, `tests-core.cjs`, `tests-world.cjs`**, in the repository root. The existing `.github/workflows/deploy.yml` works without changes. The entire game can alternatively be uploaded from the complete ZIP. Export a JSON backup under Settings before updating.
+
+## Testing
+
+Run `node --check game.js`, `node --check logic.js`, and `node --test tests-core.cjs`. The existing workflow runs this command; it imports `tests-world.cjs` automatically, so no workflow changes are necessary. The suite includes previous core rules and story-safety tests, plus Act II progression, save normalization and economy guards.
+
+---
+
 # Lantern & Key v2.5.1 — Story Continuity Patch
 
 This is a **spoiler-free corrective update** to the eight-chapter Watchroad story. It preserves the v2.5 expanded narrative, all choices, the fixed mobile navigation, chapter replay and JSON save compatibility.
@@ -6,7 +35,7 @@ The story now respects item ownership and NPC states, time spent resting versus 
 
 For older saves, the app automatically reconciles rope already used at the bridge **once**, and recovers a previously failed negotiation from the journal when possible. These migrations do not reset the campaign or the lantern.
 
-**To update an existing GitHub Pages app:** Replace the following five root files from the update ZIP: `game.js`, `tests-core.cjs`, `sw.js`, `README.md`, `RULES-AUDIT.md`. No new folders, artwork, or workflow changes. Back up your current save JSON first. GitHub Actions will run the expanded 74-test suite before publishing.
+**To update an existing GitHub Pages app:** Replace the following five root files from the update ZIP: `game.js`, `tests-core.cjs`, `tests-world.cjs`, `sw.js`, `README.md`, `RULES-AUDIT.md`. No new folders, artwork, or workflow changes. Back up your current save JSON first. GitHub Actions will run the expanded 74-test suite before publishing.
 
 ---
 
@@ -51,9 +80,9 @@ The full eight-chapter adventure now has much fuller scene descriptions, connect
 
 Its abilities are clearly labeled as an **original homebrew quest artifact**; they are not official SRD spells or class features. Players who restored or returned the lantern still have fully playable story routes and meaningful decisions. Old saves that already reached the campaign ending can access the new artifact continuation without restarting their character or losing earlier progress.
 
-**Update your existing GitHub Pages repository:** Replace the seven existing **root-level** files `game.js`, `logic.js`, `style.css`, `sw.js`, `tests-core.cjs`, `README.md` and `RULES-AUDIT.md`. No new folders, images, icons, or workflow changes. Leave `.github/workflows/deploy.yml` as-is. Export a JSON save backup before updating; your existing saves use the same storage key and JSON schema.
+**Update your existing GitHub Pages repository:** Replace the seven existing **root-level** files `game.js`, `logic.js`, `style.css`, `sw.js`, `tests-core.cjs`, `tests-world.cjs`, `README.md` and `RULES-AUDIT.md`. No new folders, images, icons, or workflow changes. Leave `.github/workflows/deploy.yml` as-is. Export a JSON save backup before updating; your existing saves use the same storage key and JSON schema.
 
-**Testing:** The automated suite now covers keeping and migrating the lantern, including old saves containing `lantern: 0`, importing those saves, spent resources, decision branches, and preserving the item throughout the campaign. Run `node --test tests-core.cjs` with Node 22+.
+**Testing:** The automated suite now covers keeping and migrating the lantern, including old saves containing `lantern: 0`, importing those saves, spent resources, decision branches, and preserving the item throughout the campaign. Run `node --test tests-core.cjs tests-world.cjs` with Node 22+.
 
 ---
 
@@ -77,11 +106,11 @@ Its abilities are clearly labeled as an **original homebrew quest artifact**; th
 
 ### Update an existing GitHub Pages repository from v2.2
 
-At the **repository root**, replace `game.js`, `style.css`, `sw.js`, `index.html`, `README.md`, and `RULES-AUDIT.md`. Upload **two new root-level files**, `logic.js` and `tests-core.cjs`. In your existing `.github/workflows` folder replace **`deploy.yml`**. Commit to `main`; **Settings → Pages → Source** stays **GitHub Actions**. **No new asset folders or illustrations** are required.
+At the **repository root**, replace `game.js`, `style.css`, `sw.js`, `index.html`, `README.md`, and `RULES-AUDIT.md`. Upload **two new root-level files**, `logic.js` and `tests-core.cjs`, `tests-world.cjs`. In your existing `.github/workflows` folder replace **`deploy.yml`**. Commit to `main`; **Settings → Pages → Source** stays **GitHub Actions**. **No new asset folders or illustrations** are required.
 
-**Important:** `logic.js` must be uploaded together with the modified `index.html` and `game.js`; the new version will not start without it. The `tests-core.cjs` file is also needed for the updated deployment workflow to pass. If you prefer a clean replacement, use the *complete* package; it includes all preexisting assets and GitHub Actions files.
+**Important:** `logic.js` must be uploaded together with the modified `index.html` and `game.js`; the new version will not start without it. The `tests-core.cjs`, `tests-world.cjs` file is also needed for the updated deployment workflow to pass. If you prefer a clean replacement, use the *complete* package; it includes all preexisting assets and GitHub Actions files.
 
-For local test runs with Node 22+: `node --test tests-core.cjs` and `node --check game.js`.
+For local test runs with Node 22+: `node --test tests-core.cjs tests-world.cjs` and `node --check game.js`.
 
 **Limitations:** This remains a guided 8-chapter educational simulator, not a full virtual tabletop or AI Dungeon Master. The bridge has a small tutorial map and simplified enemy tactics. Automated coverage exercises the shared rules and import safety, with additional manual browser walkthroughs, but does not exhaustively verify all possible story/state combinations or every device's PWA caching.
 
@@ -91,7 +120,7 @@ For local test runs with Node 22+: `node --test tests-core.cjs` and `node --chec
 
 When you choose **Keep the mysterious lantern** in Chapter 3, **The Last Lantern** now appears as a unique, nonconsumable quest item in the **Pack** tab. The story in Chapters 4 and 8 acknowledges carrying it. Saves created with v2.3.1 or earlier that already record `ending: "take"` are corrected on load, without restarting or importing again. In v2.4, this story artifact also has optional homebrew abilities with limited resources.
 
-**Update existing GitHub Pages installations:** Replace the root-level `game.js`, `tests-core.cjs`, `sw.js`, and `README.md`. The existing deployment workflow, artwork, and other source files can stay unchanged. Export a save backup before any update as usual.
+**Update existing GitHub Pages installations:** Replace the root-level `game.js`, `tests-core.cjs`, `tests-world.cjs`, `sw.js`, and `README.md`. The existing deployment workflow, artwork, and other source files can stay unchanged. Export a save backup before any update as usual.
 
 ## What's new in v2.0 (included in v2.3)
 

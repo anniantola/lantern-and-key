@@ -1,3 +1,14 @@
+## v3.0 — The Shattered Watchroad: Campaign mechanics
+
+- Act II covers Chapters 9–16 with a regional atlas, 3 recruitable NPC companions (up to 2 active), gold, paid work, shops, faction standings and branching beacon ownership. **All of these are homebrew, scenario-specific mechanics.**
+- Companion support contributes a fixed +2 bonus on relevant narrative checks while that NPC is both active and loyal. This is *not* the official Help action, proficiency, or the general D&D skill-assistance rule.
+- The optional Act II encounters teach initiative, attack rolls against AC, damage and HP, simple reactions, Magic Missile slot cost, and pause after each result. Their AI, companion attacks, spell selection and retreat rules are intentionally simplified.
+- The original level-1/2 tutorial remains available in full. The authored Act II plot stays at level 2 for rules correctness; higher-level class progression and comprehensive subclass mechanics are outside the current version.
+- Beacon restoration, private claims, faction reputation, trust loss and the final choices are original narrative systems rather than official D&D alignment rules.
+- Gold prices and rewards are authored for this campaign, not a reproduction of official equipment market lists.
+
+---
+
 ## v2.5.1 — Narrative-state consistency and social adjudication
 
 This update does not change the D&D rules baseline. In the council scene, credible evidence provides advantage on the Persuasion check and demonstrated mistrust from prior deception or intimidation imposes disadvantage. When both apply, they cancel, as per the normal advantage/disadvantage rules. The choice to award them is scenario-specific DM adjudication, **not** a universal SRD rule that every lie or threat imposes disadvantage.

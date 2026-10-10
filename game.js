@@ -399,7 +399,7 @@ function combatAction(kind) {
   combatResult({title:hit?(critical?'Critical hit!':c.enemyHp===0?'The Warden is defeated!':'You hit the Warden!'):'Your attack misses',story:hit?`${hero().attackName} ${s.classId==='wizard'?'erupts against':'strikes'} the stone guardian for ${dmg} damage${critical?' — a devastating critical hit!':'.'}`:'The guardian turns just in time. Your blow glances harmlessly off its armor.',math,type:hit?'damage':'neutral',number:hit?`−${dmg} HP`:'MISS',from:'enemy',before,after:c.enemyHp,next:c.enemyHp===0?'victory':'enemy',teaching:critical?'A natural 20 is a critical hit: roll your damage dice twice.':hit?'Your d20 + attack bonus met or exceeded the Warden’s AC. Roll damage only after a hit.':'Attacks miss when their result is below Armor Class (or the d20 shows a natural 1).'});return;
  }
 }
-function art(stage) { if(CAMPAIGN_ART[stage])return CAMPAIGN_ART[stage]; return stage==='tavern'||stage==='tavernHub'||stage==='stranger'||stage==='keeper'||stage==='door'?'tavern':stage==='passage'||stage==='passageChoice'?'passage':'vault'; }
+function art(stage) { if(WORLD_ART[stage])return WORLD_ART[stage]; if(CAMPAIGN_ART[stage])return CAMPAIGN_ART[stage]; return stage==='tavern'||stage==='tavernHub'||stage==='stranger'||stage==='keeper'||stage==='door'?'tavern':stage==='passage'||stage==='passageChoice'?'passage':'vault'; }
 function chapter(stage){if(CAMPAIGN_CHAPTER[stage])return CAMPAIGN_CHAPTER[stage];return ['tavern','tavernHub','stranger','keeper','door'].includes(stage)?1:['passage','passageChoice'].includes(stage)?2:3;}
 function choice(key,title,detail,icon='→',locked=false){return {key,title,detail,icon,locked};}
 function scene() {
@@ -421,8 +421,8 @@ function scene() {
  }
 }
 function renderWelcome() {
- return `<div class="welcome"><div class="welcome-hero"><div class="welcome-overlay"><div class="eyebrow">AN INTERACTIVE BEGINNER ADVENTURE <span class="dot"></span> VERSION 2.5.1</div><div class="ornament">✧ &nbsp; ◇ &nbsp; ✧</div><h1>Lantern <em>&</em> Key</h1><p class="welcome-subtitle">Your first steps into a world of dice, decisions, and dangerous doors.</p><div class="intro-tags"><span>◈ Solo adventure</span><span>♧ Learn as you play</span><span>◷ Eight chapters</span></div></div></div>
- <div class="welcome-content"><div class="section-top"><span class="tiny-index">01 / THE HERO</span><h2>Who walks into the tavern?</h2><p>Start with a ready-to-play level 1 character. The mechanics are simplified to teach the essentials without a long setup.</p></div>
+ return `<div class="welcome"><div class="welcome-hero"><div class="welcome-overlay"><div class="eyebrow">AN INTERACTIVE FANTASY CAMPAIGN <span class="dot"></span> VERSION 3.0</div><div class="ornament">✧ &nbsp; ◇ &nbsp; ✧</div><h1>Lantern <em>&</em> Key</h1><p class="welcome-subtitle">A world of dice, allies, hidden roads and consequences.</p><div class="intro-tags"><span>◈ Solo adventure</span><span>♧ Learn as you play</span><span>◷ 16 chapters</span></div></div></div>
+ <div class="welcome-content"><div class="section-top"><span class="tiny-index">01 / THE HERO</span><h2>Who walks into the tavern?</h2><p>Start with a ready-to-play level 1 character. Learn the rules in the eight-chapter opening act, then continue into a wider regional campaign.</p></div>
  <div class="class-grid">${Object.entries(CLASSES).map(([id,c],i)=>`<label class="class-card"><input type="radio" name="classChoice" value="${id}" ${i===0?'checked':''}/><div class="class-inner"><span class="class-icon">${c.icon}</span><span class="class-name">${c.name}</span><span class="class-tag">${c.tag}</span><span class="class-desc">${c.description}</span><span class="class-stats">${c.hp} HP <span>·</span> ${c.ac} AC</span><span class="class-select">Choose ${c.name} <span aria-hidden="true">↗</span></span></div></label>`).join('')}</div>
  <div class="name-row"><label for="heroName">CHARACTER NAME <span>(optional)</span></label><input id="heroName" maxlength="28" autocomplete="off" placeholder="Choose a name or use the default"/></div>
  <button class="primary big" data-act="begin">Begin your adventure <span>→</span></button><p class="fine-print">No account. No AI subscription. Progress saves on this device automatically.</p>
@@ -430,7 +430,7 @@ function renderWelcome() {
 }
 function renderSidebar() {
  const h=hero(); const c=s.combat;
- return `<aside class="sidebar"><div class="side-card character"><div class="side-head"><span class="small-caps">YOUR CHARACTER</span><span class="level-tag">LVL ${s.level||1}</span></div><div class="avatar">${h.icon}</div><h3>${esc(s.heroName)}</h3><p class="side-class">${h.name} <span>·</span> Adventurer</p><div class="health-row"><div class="health-heading"><span>HIT POINTS</span><strong>${s.hp} / ${maxHp()}</strong></div><div class="health-track"><span style="width:${100*s.hp/maxHp()}%"></span></div></div><div class="stat-columns"><div><span class="stat-num">${h.ac}</span><span class="stat-label">ARMOR CLASS</span></div><div><span class="stat-num">${signed(h.attack)}</span><span class="stat-label">ATTACK BONUS</span></div><div><span class="stat-num">+2</span><span class="stat-label">PROFICIENCY</span></div></div><div class="sidebar-section"><div class="small-caps">ABILITY SCORES <span class="question" title="The modifier is what you usually add to a roll.">?</span></div><div class="abilities">${Object.entries(h.stats).map(([key,score])=>`<div><span>${key}</span><strong>${score}</strong><small>${signed(Math.floor((score-10)/2))}</small></div>`).join('')}</div></div><div class="sidebar-section"><div class="small-caps">PACK & RESOURCES</div><div class="resource"><span>⚗ Healing potion</span><strong>× ${s.potions}</strong></div>${s.classId==='wizard'?`<div class="resource"><span>✦ Spell slots (level 1)</span><strong>${s.slots} / ${s.level===2?3:2}</strong></div>`:''}<div class="resource"><span>${s.flags.key?'✧':'◇'} Silver wolf-key</span><strong>${s.flags.key?'Found':'—'}</strong></div>${s.classId==='fighter'?`<div class="resource"><span>✚ Second Wind</span><strong>${s.secondWind} / 2</strong></div>`:''}<div class="resource"><span>◈ Hit Dice</span><strong>${s.hitDice} / ${s.level||1}</strong></div></div><button class="side-action" data-modal="sheet">View full character sheet →</button><button class="side-action" data-modal="inventory">Open inventory →</button></div>
+ return `<aside class="sidebar"><div class="side-card character"><div class="side-head"><span class="small-caps">YOUR CHARACTER</span><span class="level-tag">LVL ${s.level||1}</span></div><div class="avatar">${h.icon}</div><h3>${esc(s.heroName)}</h3><p class="side-class">${h.name} <span>·</span> Adventurer</p><div class="health-row"><div class="health-heading"><span>HIT POINTS</span><strong>${s.hp} / ${maxHp()}</strong></div><div class="health-track"><span style="width:${100*s.hp/maxHp()}%"></span></div></div><div class="stat-columns"><div><span class="stat-num">${h.ac}</span><span class="stat-label">ARMOR CLASS</span></div><div><span class="stat-num">${signed(h.attack)}</span><span class="stat-label">ATTACK BONUS</span></div><div><span class="stat-num">+2</span><span class="stat-label">PROFICIENCY</span></div></div><div class="sidebar-section"><div class="small-caps">ABILITY SCORES <span class="question" title="The modifier is what you usually add to a roll.">?</span></div><div class="abilities">${Object.entries(h.stats).map(([key,score])=>`<div><span>${key}</span><strong>${score}</strong><small>${signed(Math.floor((score-10)/2))}</small></div>`).join('')}</div></div>${s.unlocked>=9?`<div class="sidebar-section"><div class="small-caps">WATCHROAD COMPANY</div><div class="resource"><span>Gold pieces</span><strong>${world().gold} gp</strong></div><div class="resource"><span>Active allies</span><strong>${world().active.length}/2</strong></div><button class="side-action" data-modal="worldmap">Open road map →</button></div>`:''}<div class="sidebar-section"><div class="small-caps">PACK & RESOURCES</div><div class="resource"><span>⚗ Healing potion</span><strong>× ${s.potions}</strong></div>${s.classId==='wizard'?`<div class="resource"><span>✦ Spell slots (level 1)</span><strong>${s.slots} / ${s.level===2?3:2}</strong></div>`:''}<div class="resource"><span>${s.flags.key?'✧':'◇'} Silver wolf-key</span><strong>${s.flags.key?'Found':'—'}</strong></div>${s.classId==='fighter'?`<div class="resource"><span>✚ Second Wind</span><strong>${s.secondWind} / 2</strong></div>`:''}<div class="resource"><span>◈ Hit Dice</span><strong>${s.hitDice} / ${s.level||1}</strong></div></div><button class="side-action" data-modal="sheet">View full character sheet →</button><button class="side-action" data-modal="inventory">Open inventory →</button></div>
  <div class="side-card learning"><div class="small-caps">THE LEARNING PATH</div>${CHAPTER_NAMES.map((t,i)=>`<div class="learning-item ${(s.unlocked||1)>i?'completed':''}"><span>${(s.unlocked||1)>i?'✓':String(i+1).padStart(2,'0')}</span><p>${t}</p></div>`).join('')}<div class="side-divider"></div><button class="side-action" data-modal="chapters">Chapter checkpoints ↗</button><button class="side-action" data-modal="learn">Learning journal ↗</button><button class="side-action" data-modal="practice">Practice without risk ↗</button><button class="side-action" data-modal="rules">Quick rules reference ↗</button></div></aside>`;
 }
 function renderCheck() {
@@ -631,7 +631,7 @@ const WORLD_NOTES=[
  [8,'The mountain watchtower','The highest beacon overlooks the same roads and settlements you traveled through. What happens here matters because many people must live with its consequences.']
 ];
 function renderWorldNotes(){
- const reached=Math.max(1,Math.min(8,s.unlocked||1));
+ const reached=Math.max(1,Math.min(16,s.unlocked||1));
  return `<section class="world-notes"><h3>✧ Field notes from the watchroad</h3><p class="muted">Lore discovered by reaching each part of the adventure. These notes never reveal later chapters.</p>${WORLD_NOTES.filter(([number])=>number<=reached).map(([number,title,body])=>`<details><summary><small>CHAPTER ${String(number).padStart(2,'0')}</small> ${esc(title)}</summary><p>${esc(body)}</p></details>`).join('')}</section>`;
 }
 
@@ -640,6 +640,7 @@ function renderScene() {
  if(s.storyResult)return renderStoryResult();
  if(s.stage==='crossingBattle')return renderTactics();
  if(s.finalTest?.active)return renderBeaconTest();
+ if(WORLD_STAGES[s.stage]&&world().battle?.active)return renderWorldBattle();
 
  const v=scene();const isSpecial=['ending','defeat'].includes(s.stage);
  if(isSpecial)return renderEnding();
@@ -666,12 +667,14 @@ function renderModal(){if(!modal)return '';let title,content;
  else if(modal==='learn'){title='Learning journal';content=renderLearning();}
  else if(modal==='inventory'){title='Equipment & inventory';content=renderInventory();}
  else if(modal==='practice'){title='Practice arena';content=renderPractice();}
+ else if(modal==='worldmap'){title='Regional map';content=s.unlocked>=9?renderWorldMap():'<p class="modal-lead">The larger Watchroad map is revealed after Chapter 8. Continue the story to discover it.</p>'; }
+ else if(modal==='party'){title='Travel companions';content=s.unlocked>=9?renderParty():'<p class="modal-lead">Travel companions appear when the second act begins. Continue through the tutorial first.</p>'; }
  else if(modal==='settings'){title='Save & settings';content=`<p class="modal-lead">Your progress is saved automatically in this browser. No account or server is involved.</p>${installPanel()}<div class="mode-setting"><strong>Teaching mode</strong><p>Guided shows rules and target numbers before choices. Tabletop hides advance hints, but explains dice results afterward.</p><button class="${s.mode==='guided'?'chosen-mode':''}" data-act="mode:guided">Guided</button><button class="${s.mode==='tabletop'?'chosen-mode':''}" data-act="mode:tabletop">Tabletop</button></div><div class="settings-actions"><button data-act="export">↓ Export save as JSON</button><button data-act="import">↑ Import save from JSON</button><button data-act="restorePreImport" ${localStorage.getItem(PREIMPORT_KEY)?'':'disabled'}>↶ Restore pre-import backup</button><input id="importFile" type="file" accept=".json,application/json" hidden/><button class="danger" data-act="restart">↻ Erase save and start over</button></div><div class="attribution"><strong>Offline play:</strong> After your first successful visit via HTTPS, this app can work offline on supported browsers. Updates are never applied while you are editing or playing without choosing to reload.<br/><br/>Rules adapted from <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">SRD 5.2.1</a> (Wizards of the Coast, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>); original adventure and code. Not an official D&D product.</div>`;}
  return `<div class="modal-backdrop" data-act="closeModalBackdrop"><div role="${s.classId&&s.stage!=='welcome'?'region':'dialog'}" ${s.classId&&s.stage!=='welcome'?'':'aria-modal="true"'} aria-label="${esc(title)}" class="modal"><div class="modal-heading"><div><span class="small-caps">LANTERN & KEY</span><h2>${esc(title)}</h2></div><button class="modal-back-button" data-act="closeModal" aria-label="${s.stage==='welcome'?'Close dialog':'Return to the story'}">← <span>${s.stage==='welcome'?'Close':'Story'}</span></button></div><div class="modal-content">${content}</div></div></div>`;}
 const ADVENTURE_NAV = [
  ['story','◈','Story'], ['sheet','♜','Character'], ['inventory','♢','Pack'],
  ['learn','✦','Lessons'], ['chapters','▤','Chapters'],
- ['practice','⚔','Practice'], ['journal','☷','Journal'], ['rules','?','Rules']
+ ['practice','⚔','Practice'], ['worldmap','⌖','Map'], ['party','♟','Party'], ['journal','☷','Journal'], ['rules','?','Rules']
 ];
 function renderAdventureNav(){
  const active=ADVENTURE_NAV.some(([id])=>id===modal)?modal:'story';
@@ -679,7 +682,7 @@ function renderAdventureNav(){
 }
 function render(){
  const playing=Boolean(s.classId&&s.stage!=='welcome');
- app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy learning adventure · v2.5.1</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
+ app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy campaign · v3.0</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
 }
 function restart(){if(s.replay){if(!confirm('Discard this replay and return to your original campaign?'))return;return returnToMain();}if(!confirm('Start a new adventure? Your current progress will be replaced. Export a backup first if you want to keep it.'))return;s=initialSave();modal=null;commit();}
 function returnToMain(){try{const main=localStorage.getItem(SAVE_KEY);if(!main)throw Error('No main campaign save found.');const original=upgradeSave(validateSave(JSON.parse(main)));localStorage.removeItem(REPLAY_KEY);s=original;modal=null;commit();}catch(e){alert('Unable to restore the main campaign: '+e.message);}}
@@ -833,9 +836,11 @@ const QUIZZES={
  level:['Can a level-2 Fighter Action Surge be used for a Magic action?','No','Yes',0],
  inventory:['When can a 2024 Potion of Healing be drunk in combat?','As a Bonus Action','Only after combat',0]
 };
-function initialSave(){return {version:1,stage:'welcome',flags:{},journal:[],checks:[],heroName:'',classId:null,hp:null,potions:1,slots:0,outcome:null,combat:null,ending:null,replay:null,mastery:{},quizFeedback:null,finalTest:null,restSession:null,level:1,hitDice:1,secondWind:2,arcaneRecovery:false,actionSurge:1,mode:'guided',inventory:{rope:1,rations:2,torch:1,smoke:1,lantern:0},lanternSparks:0,equipped:'primary',learned:{},checkpoints:{},unlocked:1,practice:null,tactics:null,storyResult:null};}
+function initialSave(){return {frontier:null,version:1,stage:'welcome',flags:{},journal:[],checks:[],heroName:'',classId:null,hp:null,potions:1,slots:0,outcome:null,combat:null,ending:null,replay:null,mastery:{},quizFeedback:null,finalTest:null,restSession:null,level:1,hitDice:1,secondWind:2,arcaneRecovery:false,actionSurge:1,mode:'guided',inventory:{rope:1,rations:2,torch:1,smoke:1,lantern:0},lanternSparks:0,equipped:'primary',learned:{},checkpoints:{},unlocked:1,practice:null,tactics:null,storyResult:null};}
 function upgradeSave(raw){
  const d=initialSave(),x={...d,...raw};
+ x.frontier=raw.frontier?normalizeWorld(raw.frontier):null;
+ if(x.frontier?.battle&&x.frontier.battle.origin!==raw.stage)x.frontier.battle=null;
  x.flags=(raw.flags && typeof raw.flags==='object' && !Array.isArray(raw.flags))?raw.flags:{};
  // Preserve a paid-for lantern ward in v2.4 saves even if a later failed
  // Survival check overwrote the shared shelter flag.
@@ -864,7 +869,7 @@ function upgradeSave(raw){
   ?clamp(Number.isInteger(raw.lanternSparks)?raw.lanternSparks:3,0,3):0;
  x.learned=(raw.learned&&typeof raw.learned==='object'&&!Array.isArray(raw.learned))?raw.learned:{};x.mastery=(raw.mastery&&typeof raw.mastery==='object'&&!Array.isArray(raw.mastery))?raw.mastery:{};x.replay=(raw.replay&&typeof raw.replay==='object'&&!Array.isArray(raw.replay))?raw.replay:null;
  x.checkpoints=(raw.checkpoints&&typeof raw.checkpoints==='object'&&!Array.isArray(raw.checkpoints))?raw.checkpoints:{};
- x.unlocked=clamp(Number(raw.unlocked)|| (CAMPAIGN_CHAPTER[x.stage]||chapter(x.stage)),1,8);
+ x.unlocked=clamp(Number(raw.unlocked)|| (CAMPAIGN_CHAPTER[x.stage]||chapter(x.stage)),1,16);
  x.journal=Array.isArray(raw.journal)?raw.journal.slice(-120).map(e=>({text:String(e.text||'').slice(0,5000),kind:['story','roll','success','failure','combat'].includes(e.kind)?e.kind:'story',time:typeof e.time==='string'?e.time.slice(0,40):''})):[];
  // Old lantern-assisted crossings can still carry a failed negotiation in the journal.
  // Recover that social history even if the successful crossing later set bridgeParley=true.
@@ -892,7 +897,7 @@ function upgradeSave(raw){
 function learn(id){if(LESSONS[id]&&!s.learned[id])s.learned[id]=new Date().toISOString();}
 function learnForCheck(key){learn('checks');if(key.includes('Save')||key==='trapSave'||key==='runTrap')learn('saves');if(key.includes('talk')||key.includes('Talk')||key.includes('Persuasion')||['keeperHelp','wardTalk','c:persuade','c:deceive'].includes(key))learn('social');}
 function trackStage(){const ch=CAMPAIGN_CHAPTER[s.stage]||chapter(s.stage);s.unlocked=Math.max(s.unlocked||1,ch);if(ch<=3 && s.stage!=='welcome' && !s.checkpoints[ch]){s.checkpoints[ch]=JSON.parse(JSON.stringify({...s,checkpoints:{},storyResult:null,actionCue:null,practice:null}));}if(ch===2)learn('saves');if(ch===3)learn('combat');}
-function chapterTicks(stage){return Array.from({length:8},(_,i)=>`<i class="${chapter(stage)>i?'lit':''}"></i>`).join('');}
+function chapterTicks(stage){const ch=chapter(stage);return Array.from({length:8},(_,i)=>`<i class="${ch>(ch>8?i+8:i)?'lit':''}"></i>`).join('');}
 function cue(label){s.actionCue={label,fromStage:s.stage,hpBefore:s.hp};}
 function newChapter(stage,title,body){
  const previousStage=s.stage;
@@ -964,6 +969,7 @@ function campaignHandleCheck(key,success,roll){
  return true;
 }
 function campaignScene(){
+ if(WORLD_STAGES[s.stage])return worldScene();
  const n=s.heroName, q=choice;
  switch(s.stage){
  case 'forest':return {chapter:4,label:'A NIGHT IN BLACKWOOD',heading:'The woods remember',text:[`The tavern is behind you, ${esc(n)}. ${s.inventory.lantern?'The enchanted lantern you kept casts a faint blue glow from your pack.':'Whatever became of the lantern, a blue spark follows the road into Blackwood.'}`,`Your wounds and supplies carry forward from the first adventure. Beyond the trees, wolves call to one another.`, 'A trail marker points to a campsite and a ruined crossing.'],lesson:'A resource spent now might not be available for the next encounter. Different classes replenish features at different times.',choices:[q('c:camp','Make camp','Explore resting, recovery and Hit Point Dice','☾'),q('c:forestScout','Scout the winding road','Perception DC 12 · find a safer route','◎'),q('c:forestPotion','Use a healing potion','Restore 2d4+2 HP · if injured','⚗',s.hp===maxHp()||s.potions<1)]};
@@ -1006,7 +1012,7 @@ function campaignScene(){
    carriesLantern()?`The Last Lantern rests in your pack, ${lanternSparks()} sparks still guarded for the road ahead.`:'Your choice in the vault still shapes the valley.',
    s.flags.villageSolved?'The village council has acted on your case, and the missing supplies are being redistributed.':'The council’s inquiry into the missing supplies is still underway; your evidence may yet help them.',
    s.flags.finalInsight?'Your careful reading of the guardian helped you approach its intentions without another needless fight.':'You chose to act even without perfect certainty. The outcome belongs to your character.',
-   `You leave Blackwood as ${esc(s.heroName)}, a level ${s.level} ${hero().name}, knowing enough to join a real tabletop group.`],lesson:'At the table, your next step is to tell the DM what your character attempts. The DM responds with consequences, and the shared story continues.',choices:[q('c:review','Review your learning journal','See all the rules you have encountered','✦'),q('c:practice','Open the practice arena','Train checks and combat safely','⚔'),q('c:chapters','Replay a chapter checkpoint','Explore a different path','↶'),carriesLantern()&&!s.flags.lanternResolve?q('c:lanternAfterword','Follow the lantern’s final call','Experience the new lantern story without restarting','✧'):null].filter(Boolean)};
+   `You leave Blackwood as ${esc(s.heroName)}, a level ${s.level} ${hero().name}. Your next chapter may lead far beyond the valley.`],lesson:'At the table, your next step is to tell the DM what your character attempts. The DM responds with consequences, and the shared story continues.',choices:[q('c:review','Review your learning journal','See all the rules you have encountered','✦'),q('c:practice','Open the practice arena','Train checks and combat safely','⚔'),q('c:chapters','Replay a chapter checkpoint','Explore a different path','↶'),q('w:begin','Follow the newly revealed blue network','Begin Act II · a full regional campaign with companions, gold and choices','✧'),carriesLantern()&&!s.flags.lanternResolve?q('c:lanternAfterword','Follow the lantern’s final call','Experience the new lantern story without restarting','✧'):null].filter(Boolean)};
  default: return {chapter:8,label:'THE ADVENTURE',heading:'Continue',text:[],choices:[]};
  }
 }
@@ -1166,7 +1172,7 @@ function campaignAct(key){
 function renderMindOffer(){const m=s.mindOffer;if(!m)return '';return `<section class="story-screen story-pause"><div class="story-pause-inner"><span class="story-pause-eyebrow">✦ FIGHTER · LEVEL 2</span><h2>Tactical Mind</h2><div class="story-pause-result negative"><h3>Your check initially failed</h3><p>${esc(m.roll.name)}: d20 ${m.roll.die} ${signed(m.roll.modifier)} = ${m.roll.total} versus DC ${m.roll.dc}.</p><p>You may spend a Second Wind use to roll 1d10 and add it to your check. If the total still fails, the use is not spent.</p></div><button class="primary" data-act="mind:use">Try Tactical Mind (${s.secondWind} uses) →</button><button class="secondary" data-act="mind:accept">Accept the original failure</button></div></section>`;}
 function resolveTacticalMind(use){const m=s.mindOffer;if(!m)return;let r=m.roll;if(use){const d=rand(10);r={...r,total:r.total+d,success:r.total+d>=r.dc,tacticalMind:d};if(r.success)s.secondWind--;record(`Tactical Mind: d10 ${d}; new total ${r.total} vs DC ${r.dc}. ${r.success?'Second Wind use spent.':'Use preserved after failure.'}`,'roll');}s.mindOffer=null;s.checks[s.checks.length-1]=r;if(!campaignHandleCheck(m.key,r.success,r))handleCheckResult(m.key,r.success,r);commit();}
 function renderChapters(){
- const starts=[{n:1,name:'The Forgotten Tavern',desc:'NPCs and ability checks'},{n:2,name:'Beneath the Floorboards',desc:'Hazards and saving throws'},{n:3,name:'The Chamber of Echoes',desc:'Dialogue and early combat'},{n:4,name:'A Night in Blackwood',desc:'Resting, limited resources and recovery'},{n:5,name:'The Broken Crossing',desc:'Tactical maps, cover, opportunity attacks'},{n:6,name:'Secrets of Briar Hollow',desc:'Insight, persuasion, evidence and trust'},{n:7,name:'The Arcane Trial',desc:'Spell attacks, saves, slots and concentration'},{n:8,name:'Becoming an Adventurer',desc:'Level 2 features and final reflection'}];
+ const starts=[{n:1,name:'The Forgotten Tavern',desc:'NPCs and ability checks'},{n:2,name:'Beneath the Floorboards',desc:'Hazards and saving throws'},{n:3,name:'The Chamber of Echoes',desc:'Dialogue and early combat'},{n:4,name:'A Night in Blackwood',desc:'Resting, limited resources and recovery'},{n:5,name:'The Broken Crossing',desc:'Tactical maps, cover, opportunity attacks'},{n:6,name:'Secrets of Briar Hollow',desc:'Insight, persuasion, evidence and trust'},{n:7,name:'The Arcane Trial',desc:'Spell attacks, saves, slots and concentration'},{n:8,name:'Becoming an Adventurer',desc:'Level 2 features and final reflection'},...WORLD_CHAPTERS.map(([n,name,desc])=>({n,name,desc}))];
  return `<p class="modal-lead">Replay chapters in a separate save slot. Your original campaign, inventory and choices remain untouched.</p>${s.replay?`<div class="replay-banner"><b>REPLAYING CHAPTER ${s.replay.chapter}</b><p>Your main adventure is safe.</p><button class="primary" data-act="returnMain">← Return to main campaign</button></div>`:''}<div class="chapter-list">${starts.map(({n,name,desc})=>`<div class="chapter-entry"><div><b>${String(n).padStart(2,'0')} · ${name}</b><p>${desc}</p></div>${s.checkpoints[n]?`<button data-act="checkpoint:${n}">Replay ↻</button>`:n===1?`<span>Start a new adventure to replay</span>`:`<span>${s.unlocked>=n?'Unavailable in this older save':'Locked'}</span>`}</div>`).join('')}</div>`;
 }
 function renderLearning(){
@@ -1178,7 +1184,7 @@ function renderLearning(){
   return `<details ${unlocked?'':'class="lesson-locked"'}><summary>${done?'★':unlocked?'✓':'◇'} ${esc(title)}${done?' · mastered':unlocked?' · try a check':' · not yet encountered'}</summary><p>${unlocked?esc(desc):'Continue the campaign to unlock this lesson.'}</p>${unlocked&&q?`<div class="lesson-quiz"><strong>CHECK YOUR UNDERSTANDING</strong><p>${esc(q[0])}</p><div class="practice-buttons"><button data-act="quiz:${k}:0">${esc(q[1])}</button><button data-act="quiz:${k}:1">${esc(q[2])}</button></div>${f?`<p role="status" class="${f.correct?'quiz-correct':'quiz-wrong'}">${f.correct?'✓ Correct — applied successfully.':'Try again. Revisit the explanation above.'}</p>`:''}</div>`:''}</details>`;}).join('')}</div>`;
 }
 const ITEM_INFO={rope:['50 ft rope','Secure a climb or make a bridge crossing safer. Rope is useful even without combat.'],rations:['Travel rations','Food for travel. In a longer campaign, the DM may track food and water during journeys.'],torch:['Torch','Illuminates darkness. Carrying light can also reveal your position.'],smoke:['Smoke pellet','A training consumable: can create visual concealment in the bridge duel. Not a standard SRD item.']};
-function renderInventory(){return `<p class="modal-lead">Your supplies carry across chapters. Healing and equipment work independently of the story dialogue.</p><div class="inventory-list">${carriesLantern()?`<div class="inventory-entry lantern-item"><div><b>✧ The Last Lantern ×1</b><small>Storybound magical artifact · ${lanternSparks()} / 3 sparks remaining. Its light can change situations and unlock unique story choices. Sparks are spent only when you explicitly choose an action; a Long Rest restores one, and you may find other ways to rekindle it.</small><div class="lantern-sparks" aria-label="${lanternSparks()} of 3 lantern sparks remaining">${[0,1,2].map(i=>`<span class="${i<lanternSparks()?'filled':''}">✦</span>`).join('')}</div></div></div>`:''}<div class="inventory-entry"><div><b>⚗ Potion of Healing</b><small>2d4+2 HP · 2024 Bonus Action · ×${s.potions}</small></div><button data-act="item:potion" ${s.potions<=0||s.hp>=maxHp()?'disabled':''}>Drink</button></div>${Object.entries(ITEM_INFO).map(([id,[name,desc]])=>`<div class="inventory-entry"><div><b>${esc(name)} ×${s.inventory[id]||0}</b><small>${esc(desc)}</small></div>${id==='smoke'?`<button data-act="item:smoke" ${s.inventory.smoke<=0||s.stage!=='crossingBattle'?'disabled':''}>Use</button>`:id==='rations'?`<button data-act="item:rations" ${!s.inventory.rations?'disabled':''}>Eat</button>`:id==='torch'?`<button data-act="item:torch">${s.flags.torchLit?'Put out':'Light'}</button>`:''}</div>`).join('')}<div class="inventory-entry"><div><b>⚔ Equipped weapon</b><small>${s.equipped==='alternate'?(s.classId==='fighter'?'Javelin':s.classId==='rogue'?'Shortbow':'Quarterstaff'):hero().weapon} · change range in bridge battles</small></div><button data-act="item:equip">Swap</button></div>${s.flags.key?'<div class="inventory-entry"><div><b>✧ Silver wolf-key</b><small>An ancient key connected with the beacon.</small></div></div>':''}</div>`;}
+function renderInventory(){return `<p class="modal-lead">Your supplies carry across chapters. Healing and equipment work independently of the story dialogue.</p><div class="inventory-list">${s.unlocked>=9?`<div class="inventory-entry"><div><b>◉ Gold pieces · ${world().gold} gp</b><small>Earn rewards, buy supplies and pay for choices across the wider region.</small></div></div>`:''}${carriesLantern()?`<div class="inventory-entry lantern-item"><div><b>✧ The Last Lantern ×1</b><small>Storybound magical artifact · ${lanternSparks()} / 3 sparks remaining. Its light can change situations and unlock unique story choices. Sparks are spent only when you explicitly choose an action; a Long Rest restores one, and you may find other ways to rekindle it.</small><div class="lantern-sparks" aria-label="${lanternSparks()} of 3 lantern sparks remaining">${[0,1,2].map(i=>`<span class="${i<lanternSparks()?'filled':''}">✦</span>`).join('')}</div></div></div>`:''}<div class="inventory-entry"><div><b>⚗ Potion of Healing</b><small>2d4+2 HP · 2024 Bonus Action · ×${s.potions}</small></div><button data-act="item:potion" ${s.potions<=0||s.hp>=maxHp()?'disabled':''}>Drink</button></div>${Object.entries(ITEM_INFO).map(([id,[name,desc]])=>`<div class="inventory-entry"><div><b>${esc(name)} ×${s.inventory[id]||0}</b><small>${esc(desc)}</small></div>${id==='smoke'?`<button data-act="item:smoke" ${s.inventory.smoke<=0||s.stage!=='crossingBattle'?'disabled':''}>Use</button>`:id==='rations'?`<button data-act="item:rations" ${!s.inventory.rations?'disabled':''}>Eat</button>`:id==='torch'?`<button data-act="item:torch">${s.flags.torchLit?'Put out':'Light'}</button>`:''}</div>`).join('')}<div class="inventory-entry"><div><b>⚔ Equipped weapon</b><small>${s.equipped==='alternate'?(s.classId==='fighter'?'Javelin':s.classId==='rogue'?'Shortbow':'Quarterstaff'):hero().weapon} · change range in bridge battles</small></div><button data-act="item:equip">Swap</button></div>${s.flags.key?'<div class="inventory-entry"><div><b>✧ Silver wolf-key</b><small>An ancient key connected with the beacon.</small></div></div>':''}</div>`;}
 function renderPractice(){
  const p=s.practice||{},isDuel=p.mode==='duel',paused=p.phase==='result';
  return `<p class="modal-lead">Repeat skills, spells and combat without spending adventure resources. Every action result stays visible until you continue.</p><div class="practice-buttons"><button data-act="practice:check">Practice a skill check</button><button data-act="practice:combat">Start / restart combat</button><button data-act="practice:spell">Practice spells & saves</button><button data-act="practice:reset">Clear practice</button></div>${isDuel?`<div class="practice-hp"><span>♥ You <b>${p.heroHp}/${maxHp()}</b></span><span>⚔ Training sentry <b>${p.enemyHp}/18</b></span></div>`:''}${p.text?`<div class="practice-feedback" role="status"><span class="small-caps">${paused?'ACTION RESULT · PAUSED':'TRAINING FEEDBACK'}</span><p>${fmt(p.text)}</p>${p.math?`<p>${esc(p.math)}</p>`:''}</div>`:''}${isDuel?(paused?`<button class="primary" data-act="practice:continue">Continue → ${p.next==='enemy'?'Sentry response':p.next==='round'?'New turn':'Choose next action'}</button>`:p.heroHp<=0||p.enemyHp<=0?`<p>Practice battle complete. Restart to try a different approach.</p>`:`<span class="small-caps">ROUND ${p.round} · ${p.usedAction?'Action spent':'Action available'} · ${p.usedBonus?'Bonus Action spent':'Bonus Action available'}</span><div class="practice-buttons"><button data-act="practice:attack" ${p.usedAction?'disabled':''}>⚔ Attack</button><button data-act="practice:dodge" ${p.usedAction?'disabled':''}>◇ Dodge</button><button data-act="practice:heal" ${p.usedBonus||p.heroHp>=maxHp()?'disabled':''}>⚗ Bonus: Potion</button>${s.level===2&&s.classId==='fighter'?`<button data-act="practice:surge" ${!p.usedAction||p.surged?'disabled':''}>✦ Action Surge</button>`:''}${s.level===2&&s.classId==='rogue'?`<button data-act="practice:hide" ${p.usedBonus?'disabled':''}>↟ Cunning Hide</button>`:''}${s.classId==='wizard'?`<button data-act="practice:missile" ${p.usedAction||p.surgeOnly?'disabled':''}>✦ Magic Missile</button>`:''}<button data-act="practice:end">End turn →</button></div>`):''}`;
@@ -1344,6 +1350,10 @@ function renderBeaconTest(){
  return `<section class="story-screen"><div class="combat-banner"><span>CHAPTER 8 · LEVEL-2 CHALLENGE</span><h2>The Beacon’s Echo</h2><p>Demonstrate your class features; the echo will stop before you fall unconscious.</p></div><div class="combat-body"><div class="tactical-hps"><div class="tactical-health ally"><span>♥ ${esc(s.heroName)}</span><strong>${s.hp}/${maxHp()} HP</strong><div><i style="width:${100*s.hp/maxHp()}%"></i></div></div><div class="tactical-health foe"><span>✦ Echo</span><strong>${t.enemyHp}/${t.enemyMax} HP</strong><div><i style="width:${100*t.enemyHp/t.enemyMax}%"></i></div></div></div>${r?`<div class="tactical-result ${r.kind}"><span class="small-caps">ROUND ${t.round} · ACTION RESULT</span><h3>${esc(r.title)}</h3><p>${esc(r.body)}</p><button class="primary" data-act="beacon:continue">Continue →</button></div>`:`<div class="tactical-actions"><strong>YOUR TURN · ROUND ${t.round}</strong><p>${t.usedAction?'Your main Action is spent; you can end the turn or use an available class feature.':'Choose an Action. Bonus Actions are optional.'}</p><div class="practice-buttons"><button data-act="beacon:attack" ${t.usedAction?'disabled':''}>⚔ Attack</button>${s.classId==='wizard'?`<button data-act="beacon:missile" ${t.usedAction||s.slots<=0?'disabled':''}>✦ Magic Missile (${s.slots})</button>`:''}<button data-act="beacon:dodge" ${t.usedAction?'disabled':''}>◇ Dodge</button>${s.classId==='fighter'&&s.actionSurge>0?`<button data-act="beacon:surge" ${!t.usedAction||t.extraUsed?'disabled':''}>Action Surge (${s.actionSurge})</button>`:''}${s.classId==='rogue'?`<button data-act="beacon:hide" ${t.usedBonus?'disabled':''}>Cunning Hide</button>`:''}${s.classId==='fighter'?`<button data-act="beacon:wind" ${t.usedBonus||s.secondWind<=0||s.hp>=maxHp()?'disabled':''}>Second Wind</button>`:''}<button data-act="beacon:potion" ${t.usedBonus||s.potions<=0||s.hp>=maxHp()?'disabled':''}>Healing potion</button><button data-act="beacon:end">End turn →</button></div></div>`}</div></section>`;
 }
 function campaignEvent(action){
+ if(action.startsWith('wb:'))return worldBattleAction(action);
+ if(action.startsWith('wtravel:'))return worldMapTravel(action);
+ if(action.startsWith('wparty:'))return worldPartyAction(action);
+ if(action.startsWith('w:'))return worldAction(action);
  if(action.startsWith('beacon:')){const key=action.split(':')[1];if(key==='continue')beaconContinue();else beaconAction(key);return true;}
  if(action==='enterForest'){campaignAct(action);return true;}
  if(action==='mind:use'||action==='mind:accept'){resolveTacticalMind(action==='mind:use');return true;}
@@ -1422,6 +1432,327 @@ function campaignEvent(action){
 // A detailed roll result always follows action resolution; chapter 8 then has an epilogue choice.
 const oldContinueStory=continueStory;
 // The original continues unchanged. The final Chapter 8 challenge transitions after its result.
+
+
+// ACT II — THE SHATTERED WATCHROAD: self-contained quest/party/economy state.
+const WORLD_STAGES = {
+ roadMap:9, roadCamp:9, waymarket:10, waygate:10,
+ northmoor:11, moorBeacon:11, glassfen:12, fenBeacon:12,
+ harbor:13, harborBeacon:13, undercrypt:14, cryptArchive:14,
+ citadel:15, citadelSpire:15, worldheart:16, roadFinale:16
+};
+const WORLD_ART = {roadMap:'summit',roadCamp:'forest',waymarket:'village',waygate:'crossing',northmoor:'forest',moorBeacon:'summit',glassfen:'forest',fenBeacon:'vault',harbor:'crossing',harborBeacon:'summit',undercrypt:'passage',cryptArchive:'arcane',citadel:'village',citadelSpire:'summit',worldheart:'summit',roadFinale:'summit'};
+const WORLD_CHAPTERS = [
+ [9,'The Map Beneath the Light','The network is revealed; choose companions'],
+ [10,'Waycross','Earn gold, trade and establish a foothold'],
+ [11,'The North Moor','The first remote waylight'],
+ [12,'Glassfen','A dangerous crossing and a second signal'],
+ [13,'Saltmere Harbor','Trade, witnesses and an endangered harbor light'],
+ [14,'The Buried Archive','The network’s forgotten history'],
+ [15,'The Citadel of Bells','Choose whom you are willing to trust'],
+ [16,'The Heart of the Road','Decide the fate of the entire network']
+];
+const WORLD_START={9:'roadMap',10:'waymarket',11:'northmoor',12:'glassfen',13:'harbor',14:'undercrypt',15:'citadel',16:'worldheart'};
+const COMPANIONS={
+ mara:{name:'Mara',role:'Ranger · scout',tag:'Tracks, routes and safe camps',skill:'perception',bio:'A watchroad scout who refuses to abandon travelers. She believes a repaired network belongs to everyone.',ideal:'repair'},
+ tamsin:{name:'Tamsin',role:'Healer · herbalist',tag:'Medicine, supplies and care',skill:'survival',bio:'An apothecary who treats travelers regardless of faction. She has little patience for needless cruelty.',ideal:'repair'},
+ corvin:{name:'Corvin',role:'Ex-keeper · negotiator',tag:'Deals, history and influence',skill:'persuasion',bio:'A former waylight accountant who knows what the network can buy for the ambitious. His loyalty must be earned.',ideal:'claim'}
+};
+function freshWorld(){return {gold:18,day:1,active:[],recruited:[],trust:{mara:0,tamsin:0,corvin:0},reputation:{keepers:0,syndicate:0},beacons:{waygate:'dark',moor:'dark',fen:'dark',harbor:'dark'},done:{},clues:0,mercy:0,dominion:0,relief:0,ending:null};}
+function normalizeWorld(data){const fresh=freshWorld();if(!data||typeof data!=='object'||Array.isArray(data))return fresh;
+ const clean={...fresh,...data};
+ clean.gold=clamp(Number.isFinite(data.gold)?Math.trunc(data.gold):18,0,9999);
+ clean.day=clamp(Number.isFinite(data.day)?Math.trunc(data.day):1,1,500);
+ clean.active=Array.isArray(data.active)?[...new Set(data.active.filter(x=>COMPANIONS[x]))].slice(0,2):[];
+ clean.recruited=Array.isArray(data.recruited)?[...new Set(data.recruited.filter(x=>COMPANIONS[x]))]:[];
+ clean.active=clean.active.filter(id=>clean.recruited.includes(id));
+ clean.trust=Object.fromEntries(Object.keys(COMPANIONS).map(id=>[id,clamp(Number.isFinite(data.trust?.[id])?data.trust[id]:0,-3,5)]));
+ clean.reputation={keepers:clamp(Number.isFinite(data.reputation?.keepers)?data.reputation.keepers:0,-10,10),syndicate:clamp(Number.isFinite(data.reputation?.syndicate)?data.reputation.syndicate:0,-10,10)};
+ clean.beacons=Object.fromEntries(Object.keys(fresh.beacons).map(id=>[id,['dark','restored','claimed'].includes(data.beacons?.[id])?data.beacons[id]:'dark']));
+ clean.done={};if(data.done&&typeof data.done==='object'&&!Array.isArray(data.done))for(const [k,v] of Object.entries(data.done)){if(/^[a-zA-Z0-9_:-]{1,50}$/.test(k)&&v===true)clean.done[k]=true;}
+ for(const k of ['clues','mercy','dominion','relief'])clean[k]=clamp(Number.isFinite(data[k])?Math.trunc(data[k]):0,0,50);
+ clean.ending=['restore','rule','free'].includes(data.ending)?data.ending:null;
+ const b=data.battle;clean.battle=b&&b.active===true&&['glassfen','citadelSpire'].includes(b.origin)&&Number.isFinite(b.enemyHp)&&Number.isFinite(b.enemyMax)&&['initiative','player','result'].includes(b.phase)?{active:true,origin:b.origin,enemyHp:clamp(b.enemyHp,0,60),enemyMax:clamp(b.enemyMax,1,60),enemyAc:clamp(Number(b.enemyAc)||12,1,30),round:clamp(Number(b.round)||1,1,100),phase:b.phase,guard:!!b.guard,bonus:!!b.bonus,started:!!b.started,next:['player','enemy','victory','defeat','flee','bonus','start'].includes(b.next)?b.next:null,result:b.result&&typeof b.result==='object'?{title:String(b.result.title||'').slice(0,200),story:String(b.result.story||'').slice(0,1000),math:String(b.result.math||'').slice(0,400)}:null}:null;
+ if(clean.battle?.phase==='result'&&(!clean.battle.result||!clean.battle.next))clean.battle=null;
+ return clean;
+}
+function world(){if(!s.frontier)s.frontier=freshWorld();return s.frontier;}
+function wDone(key){return world().done[key]===true;}
+function worldHeroLabel(){return `${esc(s.heroName)} · ${esc(hero().name)}`;}
+function wChoice(key,title,detail,icon='✧',locked=false){return choice('w:'+key,title,detail,icon,locked);}
+function wTrusted(id){return world().active.includes(id)&&world().trust[id]>-2;}
+function worldCompanionBonus(skill){return Object.values(COMPANIONS).some(c=>c.skill===skill&&wTrusted(Object.keys(COMPANIONS).find(id=>COMPANIONS[id]===c)))?2:0;}
+function worldDescribeParty(){const names=world().active.map(id=>COMPANIONS[id].name);return names.length?`${names.join(' and ')} ${names.length===1?'travels':'travel'} beside you.`:'For now you walk without companions; the road can be braved alone.';}
+function worldCanSpend(n){return world().gold>=n;}
+function worldGain(amount){world().gold=Math.max(0,Math.min(9999,world().gold+amount));}
+function worldLoyalty(keepers=0,syndicate=0,trustChange={}){const w=world();w.reputation.keepers=clamp(w.reputation.keepers+keepers,-10,10);w.reputation.syndicate=clamp(w.reputation.syndicate+syndicate,-10,10);
+ for(const id of Object.keys(trustChange))if(COMPANIONS[id])w.trust[id]=clamp(w.trust[id]+trustChange[id],-3,5);
+ for(const id of [...w.active])if(w.trust[id]<=-2){w.active=w.active.filter(x=>x!==id);record(`${COMPANIONS[id].name} refuses to take part in the party's current methods and stays at the nearest safe waypoint.`);}
+}
+function worldBeat(title,body,success=null,roll=null){outcome(title,body,success,roll);commit();}
+function worldTravel(stage,title,body){world().day++;newChapter(stage,title,body);}
+function worldStep(stage,title,body){moveScene(stage,title,body);}
+function worldCheck(skill,dc,title,winText,failText,apply){
+ const score=skillBonus(skill)??0,extra=worldCompanionBonus(skill);const die=rand(20),total=die+score+extra,passed=total>=dc;
+ const roll={name:skill==='perception'?'Wisdom (Perception)':skill==='persuasion'?'Charisma (Persuasion)':skill==='investigation'?'Intelligence (Investigation)':skill==='arcana'?'Intelligence (Arcana)':skill==='insight'?'Wisdom (Insight)':'Wisdom (Survival)',die1:die,die2:null,die,total,modifier:score+extra,dc,mode:'normal',success:passed};
+ s.checks.push(roll);record(`Watchroad check: ${title}: d20 ${die} + ${score}${extra?' + '+extra+' companion':''} = ${total} vs ${dc}.`,'roll');
+ if(typeof apply==='function')apply(passed);
+ worldBeat(title,`${passed?winText:failText} Roll: ${die} ${signed(score+extra)} = ${total} against DC ${dc}.${extra?' A companion contributed +2.':''}`,passed,roll);
+}
+function worldBeacon(id,approach){const w=world();if(w.beacons[id]!=='dark')return;w.beacons[id]=approach;
+ const town={waygate:'Waycross',moor:'North Moor',fen:'Glassfen',harbor:'Saltmere'}[id];
+ if(approach==='restored'){w.mercy++;worldLoyalty(2,-1,{mara:1,tamsin:1,corvin:-1});worldGain(5);worldBeat('A light for everyone',`The ${town} beacon burns blue again, its signal freely visible to pilgrims and couriers. A local keeper contributes 5 gp to your traveling expenses. Some powerful interests would have preferred private control.`,true);}
+ else{w.dominion++;worldGain(16);worldLoyalty(-2,2,{mara:-1,tamsin:-1,corvin:1});worldBeat('Power under a new seal',`You bind the ${town} light to your personal seal. A broker pays 16 gp for access to its routes; travelers below discover that safe passage may now depend on your permission. Your companions take notice.`,true);}
+}
+function worldScene(){const w=world(),status=(id)=>w.beacons[id]==='dark'?'unresolved':w.beacons[id]==='restored'?'freely restored':'under private control';
+ switch(s.stage){
+ case 'roadMap':return {chapter:9,label:'THE MAP BENEATH THE LIGHT',heading:'A thousand roads in one flame',text:[
+ 'The first eight chapters were only the beginning. High above Blackwood, the mountain light opens like an eye, tracing blue lines through the hills and beyond the borders of the familiar valley.',
+ 'The glass beneath your hand is not a window. It is a map: roads, waystations and hundreds of linked flames. Many are dark. Others are lit with a color that suggests someone has changed their purpose.',
+ carriesLantern()?'The Last Lantern answers with a pulse from your pack. Its sparks belong to a system vastly older than the tavern; what you carry could help repair that system—or put its power in private hands.':'You chose not to keep the old lantern. The mountain beacon nonetheless recognizes the promises you made on the road. You can still shape the network through people, labor and hard decisions.',
+ 'An old bell rings from the valley. Three travelers waiting at a ruined camp have seen the same lines appear in the sky. They ask whether you intend to follow them.'
+ ],lesson:'A campaign is more than an encounter. Travel, equipment, alliances, money and moral consequences can alter who you become.',choices:[!wDone('survey')?wChoice('survey','Study the blue map','Investigation DC 12 · discover a hidden connection','◎'):null,wChoice('camp','Follow the map to the travelers’ camp','Meet people who may join your journey','↝')].filter(Boolean)};
+ case 'roadCamp':return {chapter:9,label:'THE FIRST COMPANY',heading:'Three strangers at the dying fire',text:[
+ 'The campsite is an old maintenance post. In its center sits a stone showing the same three-eyed wolf you saw at the tavern; a loose block of blue glass lies nearby.',
+ 'Mara, a ranger, wants the roads reopened without tolls. Tamsin, a healer, wants the forgotten villages supplied before winter. Corvin, a former keeper, speaks of the fortunes waiting in a network no ruler understands.',
+ 'Each has reasons to travel with you, and reasons to leave. A party is not simply an extra set of attack bonuses.',worldDescribeParty()
+ ],lesson:'Companions have goals and relationships. You can recruit up to two active allies; their trust may change as you make difficult choices.',choices:[...Object.keys(COMPANIONS).filter(id=>!w.recruited.includes(id)).map(id=>wChoice('recruit:'+id,`Invite ${COMPANIONS[id].name}`,COMPANIONS[id].tag,'♟')),wChoice('market','Travel together toward Waycross','Chapter 10 · Trade and work along the road','↝')]};
+ case 'waymarket':return {chapter:10,label:'WAYCROSS',heading:'Where every road has its price',text:[
+ 'Waycross grew around four intersections of the old blue road. Its square is filled with wagons waiting for signals that no longer come; a tin bell hangs above the market, ringing whenever someone pays another toll.',
+ `You have ${w.gold} gp. A merchant sells remedies and rations; a guild broker offers payment for private passage through the first gate. Families sheltering beneath the aqueduct ask for help reopening it.`,
+ 'The town seems to have two prices for everything: what the traveler pays, and what the person who controls the road earns.',worldDescribeParty()
+ ],lesson:'Gold, equipment and paid labor affect your options. Every purchase is tracked, and rewards cannot be collected twice.',choices:[!wDone('cartJob')?wChoice('cartJob','Help unload a damaged caravan','Earn 10 gp through honest work','♜'):null,wChoice('potion','Buy a Potion of Healing','Cost 8 gp · 2d4+2 HP','⚗',!worldCanSpend(8)),wChoice('rations','Buy two travel rations','Cost 4 gp · useful on the road','♢',!worldCanSpend(4)),wChoice('gate','Investigate the western waygate','Decide how the first public signal should work','↝')]};
+ case 'waygate':return {chapter:10,label:'THE WESTERN WAYGATE',heading:'A toll written in blue fire',text:[
+ 'On the old stone archway, a half-lit beacon throws a narrow blue path across the road. A guild clerk has fastened a brass lock to its control wheel. Only caravans bearing stamped passes may continue after dark.',
+ w.reputation.syndicate>0?'The clerk knows you have spoken to the guild. An offer waits on the table, but it comes with conditions.':'The local keepers ask you to make the path safe for everyone, not simply for the wealthiest wagons.',
+ `The waygate is ${status('waygate')}.`
+ ],lesson:'A choice can affect reputation and wealth even if no dice roll is required.',choices:w.beacons.waygate==='dark'?[wChoice('beacon:waygate:restored','Reopen passage for everyone','Restore the public signal · earn 5 gp in support','✦'),wChoice('beacon:waygate:claimed','Sell exclusive access to the guild','Claim the beacon · gain 16 gp and influence','♛')]:[wChoice('moor','Follow the northern line onto the moor','Chapter 11 · Trace the signal','↝')]};
+ case 'northmoor':return {chapter:11,label:'THE NORTH MOOR',heading:'The road that has forgotten its name',text:[
+ 'Beyond Waycross, dry stone walls disappear beneath pale grass. Survey stakes pierce the hills where towers once stood. In the dusk, faint blue lines appear on the earth only when the clouds cover the stars.',
+ 'A widow named Isolde tends a roofless waystation. She says travelers have vanished because their lamps were diverted to a private estate. The northern light must be reached before the next storm.',
+ wDone('moorClue')?'You have identified the marks leading to the keeper’s old maintenance stair.':'The hillside gives no obvious indication of where the light can be repaired.',worldDescribeParty()
+ ],lesson:'Exploration and your companions’ skills can reveal safer ways to complete a quest.',choices:[!wDone('moorClue')?wChoice('moorClue','Read the old trail markers','Perception DC 13 · Mara can help','◎'):null,!wDone('moorAid')?wChoice('moorAid','Carry food to Isolde’s waystation','Spend 1 ration · receive 9 gp for repair work','♢',s.inventory.rations<1):null,wChoice('moorTop','Climb to the moor beacon','Face the choice at the signal tower','↝')]};
+ case 'moorBeacon':return {chapter:11,label:'THE NORTHERN LIGHT',heading:'The beacon beneath the storm',text:[
+ 'The tower hums in the rain. Its core still carries enough energy to mark a safe crossing, but the old control wheel can send the light over the commons or narrow it toward a private road.',
+ wDone('moorClue')?'The signs you traced show exactly where the public conductor should be reconnected.':'Without the old markers, you must work from the exposed conduits and trust your judgment.',
+ `The North Moor beacon is ${status('moor')}.`
+ ],lesson:'A difficult task may have different costs depending on what you learned earlier.',choices:w.beacons.moor==='dark'?[wChoice('beacon:moor:restored','Repair the commons signal','Reopen the moor road · 5 gp donated by keepers','✦'),wChoice('beacon:moor:claimed','Redirect the light to a private road','Secure patronage · gain 16 gp','♛')]:[wChoice('fen','Track the next line into Glassfen','Chapter 12 · The drowned waystation','↝')]};
+ case 'glassfen':return {chapter:12,label:'GLASSFEN',heading:'A causeway beneath the water',text:[
+ 'At the marsh edge the road is visible only as glowing stones below black water. Whole villages once crossed on this causeway, guided by a beacon whose reflections now point travelers in circles.',
+ 'A barge has grounded among the reeds. Its crew can be rescued, but time and supplies are precious. Beyond them, a derelict tower leans over a pool as still as polished glass.',
+ wDone('fenRescue')?'The rescued crew waits by the lantern posts, grateful and ready to help with supplies.':'The boat crew calls from the mist; you can still hear them over the water.',worldDescribeParty()
+ ],lesson:'Time, equipment and care for other people shape the reputation your character earns.',choices:[!wDone('fenRescue')?wChoice('fenRescue','Help the stranded barge','Survival DC 12 · rescue may have a cost','♧'):null,!wDone('fenFight')?wChoice('fenFight','Confront the toll sentinels in the mist','Optional combat · companions can assist','⚔'):null,wChoice('fenTop','Approach the sunken beacon','Follow the light into the mist','↝')]};
+ case 'fenBeacon':return {chapter:12,label:'THE DROWNED LIGHT',heading:'What the water remembers',text:[
+ 'An ancient mechanism churns below the surface. A fracture splits the brass housing, and the glow has been captured by a lattice of glass designed to divert light to one favored shore.',
+ 'The marsh folk tell you that their children have lost their way home. The private traders insist they need exclusive light to protect their boats.',
+ `The Glassfen beacon is ${status('fen')}.`
+ ],lesson:'A choice can be costly even when it feels easy. Companion loyalties react to the reasons behind it.',choices:w.beacons.fen==='dark'?[wChoice('beacon:fen:restored','Reconnect both shores','Make the shared causeway visible again','✦'),wChoice('beacon:fen:claimed','Give one shore a private channel','Profit from control · gain 16 gp','♛')]:[wChoice('port','Follow the river down to Saltmere','Chapter 13 · The harbor petitions','↝')]};
+ case 'harbor':return {chapter:13,label:'SALTMERE HARBOR',heading:'The city of bells and ledgers',text:[
+ 'The harbor’s cranes silhouette a pale-blue dusk. Each dock has its own warning bell, but the central lighthouse is dark. Without it, captains rely on costly pilots employed by a single trading house.',
+ 'Guild scribes debate prices beneath a painted map of the coastline. A harbor worker brings you a sealed request for supplies from the villages upriver. The request is stamped with the same three-eyed wolf.',
+ `Your purse holds ${w.gold} gp. Your deeds are becoming known: some call you a restorer, others an investor.`,worldDescribeParty()
+ ],lesson:'Rewards, reputation and party ethics give social decisions lasting consequences.',choices:[!wDone('portDelivery')?wChoice('portDelivery','Deliver the upriver supplies','Earn 14 gp and help the families','♢'):null,!wDone('portBroker')?wChoice('portBroker','Listen to a guild broker’s offer','Gain information about the lighthouse · Insight DC 12','◎'):null,wChoice('portTop','Enter the lighthouse','Find the third regional beacon','↝')]};
+ case 'harborBeacon':return {chapter:13,label:'THE HARBOR LIGHT',heading:'Where the ships choose their shore',text:[
+ 'On the lighthouse steps, an old keeper points to shipwreck names carved into the wall. The harbor guild offers legal control of the beam in exchange for a substantial payment.',
+ wDone('portBroker')?'You remember the guild’s explanation; their priorities are now easier to recognize.':'The guild proposal offers wealth without explaining who will be turned away.',
+ `The Saltmere beacon is ${status('harbor')}.`
+ ],lesson:'Competing priorities need not produce an immediately obvious villain. Your reputation reflects your repeated choices.',choices:w.beacons.harbor==='dark'?[wChoice('beacon:harbor:restored','Restore the public lighthouse','Keep the approaches open to all ships','✦'),wChoice('beacon:harbor:claimed','Accept exclusive guild stewardship','Profit from harbor access · gain 16 gp','♛')]:[wChoice('crypt','Seek the buried origin of the map','Chapter 14 · The hidden records','↝')]};
+ case 'undercrypt':return {chapter:14,label:'THE BURIED ARCHIVE',heading:'Beneath the city’s founding stone',text:[
+ 'The path below the harbor passes through tunnels of blue tile and dark basalt. Here the road map ceases to be metaphor: glass filaments run through the stone, connecting every old signal to a hidden center.',
+ 'You find the records of people who built the beacons without crowns or charters. Later authorities wrote new names over the old ones. A ledger lies sealed behind a mechanism that listens for the familiar three-eyed wolf.',
+ carriesLantern()?'The lantern in your pack flickers at the sealed mechanism, but it does not choose for you.':'The seal also responds to the record of your actions across the watchroad. Carrying the lantern is not a requirement.',worldDescribeParty()
+ ],lesson:'History, evidence and power can become campaign resources. A secret need not be sold just because it is valuable.',choices:[!wDone('cryptSolve')?wChoice('cryptSolve','Read the founders’ account','Investigation DC 14 · discover the network’s central pact','◎'):null,wChoice('archive','Follow the glass filaments to the records','Decide what should happen to them','↝')]};
+ case 'cryptArchive':return {chapter:14,label:'THE FOUNDERS’ ARCHIVE',heading:'A truth with a buyer',text:[
+ 'The book explains how the waylights began as a promise among villages: every keeper could use the light, but none was permitted to own every route. Over time the promise became a profitable monopoly.',
+ 'A sealed copy could prove that the private tolls are based on a later forgery. It could also be sold to those who want the truth buried.',
+ w.clues>0?'Your earlier discoveries lend credibility to the founders’ account.':'You understand the broad history but lack some of the specific corroborating names and dates.'
+ ],lesson:'Evidence gives access to later social options. Gold from selling it may come at a moral cost.',choices:[!wDone('archiveChoice')?wChoice('archivePublish','Copy the records for the public','Protect the evidence · gain keepers’ trust','✦'):null,!wDone('archiveChoice')?wChoice('archiveSell','Sell exclusive rights to the records','Receive 25 gp; others cannot inspect your copy','♛'):null,wDone('archiveChoice')?wChoice('toCitadel','Take your findings to the Citadel of Bells','Chapter 15 · Alliances are tested','↝'):null].filter(Boolean)};
+ case 'citadel':return {chapter:15,label:'THE CITADEL OF BELLS',heading:'An invitation on two seals',text:[
+ 'Two summons await you at the Citadel gate. The public keepers want the network governed by a council of towns. The Syndicate wants a single steward, paid to keep the roads safe—or to keep its rivals out.',
+ 'You can accept the protection of either faction, or remain unaligned and risk being heard by neither. Your companions have their own thoughts about what has happened along the road.',
+ `Keepers’ standing: ${w.reputation.keepers}. Syndicate standing: ${w.reputation.syndicate}.`,worldDescribeParty()
+ ],lesson:'Your allies and previous deeds affect your credibility. Negotiation is not an automatic success regardless of context.',choices:[!wDone('citadelPledge')?wChoice('pledgeKeepers','Stand with the public keepers','Support a council of towns','✦'):null,!wDone('citadelPledge')?wChoice('pledgeGuild','Seek a charter from the Syndicate','Support a powerful single steward','♛'):null,!wDone('citadelPledge')?wChoice('pledgeNone','Remain independent','Answer only to your own conscience','◇'):null,wDone('citadelPledge')?wChoice('spire','Enter the Citadel spire','Face the consequences of your alliances','↝'):null].filter(Boolean)};
+ case 'citadelSpire':return {chapter:15,label:'THE CITADEL SPIRE',heading:'The price of a final invitation',text:[
+ 'At the highest room, a great glass globe displays every road you have traveled. Behind its blue lines are villages, waystations and names that cannot be reduced to marks on a map.',
+ `The signals now read: ${Object.entries(w.beacons).map(([id,state])=>`${id} (${state})`).join(', ')}.`,
+ 'The two factions wait for your answer. Any promise made at the Worldheart must be kept without assuming every citizen will agree.',worldDescribeParty()
+ ],lesson:'Your group can disagree. Companions are people with preferences, not just equipment.',choices:[!wDone('relief')?wChoice('relief','Fund a village relief caravan','Spend 12 gp; aid people left without light','♡',!worldCanSpend(12)):null,!wDone('spireFight')?wChoice('spireFight','Face the charter enforcers','Optional tactical duel before reaching the heart','⚔'):null,wChoice('heart','Follow the final blue line','Chapter 16 · The Worldheart','↝')]};
+ case 'worldheart':return {chapter:16,label:'THE HEART OF THE ROAD',heading:'The light beneath all roads',text:[
+ 'You reach the chamber where the blue lines meet. Its vast mirror reflects towns you have helped, towns you profited from, and those whose names never reached the official records.',
+ 'A voice asks not what kind of hero you claim to be, but what your actions have permitted others to do. You may reconnect the network for everyone, take its authority, or release it from central control entirely.',
+ `You restored ${w.mercy} public waylights and claimed ${w.dominion} for private control. ${worldDescribeParty()}`,
+ 'This decision cannot be undone on your main save except by importing an earlier backup; chapter replays remain separate.'
+ ],lesson:'This is the campaign’s final moral choice. Its consequences draw on what you did, whom you helped, and who still trusts you.',choices:[wChoice('finalRestore','Rebuild the commons network','Share control across towns and keepers','✦'),wChoice('finalRule','Take the network as your own','Gain its authority, wealth and burdens','♛'),wChoice('finalFree','Break the central seal','Let every town tend its own light','◇')]};
+ case 'roadFinale':return {chapter:16,label:'THE SHATTERED WATCHROAD',heading:w.ending==='restore'?'The road belongs to everyone':w.ending==='rule'?'A crown without a throne':'A thousand smaller promises',text:[
+ w.ending==='restore'?'The blue lines spread like dawn over a map that no longer has a single owner. Reopened roads require maintenance, votes, wages and cooperation, but the next caravan can travel without purchasing permission from you.':w.ending==='rule'?'From the Worldheart you could direct every waylight. Wealth flows with the tolls. Your name becomes a guarantee to those you protect and a warning to those you exclude; governing the network will demand more than taking it.':'The central glass goes dark for a heartbeat. Then independent lanterns bloom across the map: smaller, fragile, but free from any single hand. Villages must learn to coordinate without the old central command.',
+ w.ending==='rule'&&w.reputation.keepers<0?'Several public keepers withdraw their support, leaving your agents to maintain roads whose communities distrust them.':w.ending==='restore'&&w.mercy>=3?'The restored waylights answer in sequence, and the first night courier reaches a village long thought unreachable.':w.ending==='free'?'Local watch committees form around surviving towers, each making different choices with their share of the light.':'The final choice does not erase the record of how you traveled here.',
+ world().active.length?`At your side stand ${world().active.map(id=>COMPANIONS[id].name).join(' and ')}, each carrying their own memories of the journey.`:'You stand alone in the chamber, but every person who crossed your road remembers what you did.',
+ carriesLantern()?'The Last Lantern remains in your pack, a reminder that holding power is never the same as understanding it.':'You leave without carrying the Last Lantern; the network was always larger than any one object.',
+ `Your purse contains ${w.gold} gp. Your choices have been recorded in the Journal, and you can revisit the region in Map. This campaign is complete.`
+ ],lesson:'A tabletop campaign can conclude without every consequence being simple or happy. Your actions are the story you made.',choices:[wChoice('mapOpen','Review the full regional map','See how each waylight was left','◎'),wChoice('partyOpen','Review your traveling company','See who traveled with you','♟'),wChoice('chaptersOpen','Replay chapters safely','Keep the main ending and experiment in a separate slot','↶')]};
+ default:return {chapter:9,label:'THE WATCHROAD',heading:'Follow the blue path',text:['The blue road leads onward.'],choices:[]};
+ }
+}
+function worldAction(action){if(!action.startsWith('w:'))return false;
+ if(s.storyResult||s.pending||s.mindOffer||world().battle?.active)return true;
+ const item=action.slice(2);if(!WORLD_STAGES[s.stage]&&item!=='begin')return true;
+ if(s.stage==='roadFinale'&&['mapOpen','partyOpen','chaptersOpen'].includes(item)){modal=item==='mapOpen'?'worldmap':item==='partyOpen'?'party':'chapters';render();return true;}
+ const current=s.stage==='epilogue'?{choices:[wChoice('begin','Follow the newly revealed network','Set out into the wider world')]}:worldScene();
+ const allowed=current.choices.some(c=>c&&c.key===action&&!c.locked&&availableStoryChoice(c));
+ if(!allowed)return true;
+ cue(current.choices.find(c=>c&&c.key===action)?.title||'Continue along the Watchroad');
+ if(item==='begin'){
+  if(s.stage!=='epilogue')return true;
+  world();worldTravel('roadMap','A map opens beneath the blue sky','What you thought was the end of your adventure becomes a new beginning.');return true;
+ }
+ if(item==='fenFight'||item==='spireFight'){startWorldBattle(item);return true;}
+ if(item==='survey'){
+  if(wDone('survey'))return true;world().done.survey=true;
+  worldCheck('investigation',12,'The pattern beneath the light','You recognize the junctions of a connected map and identify four damaged beacons leading toward a central heart.','The pattern still suggests four western waylights, although their exact history remains obscure.',ok=>{if(ok)world().clues++;});return true;
+ }
+ if(item==='camp'){worldStep('roadCamp','Along the blue trail','By nightfall the old waystation appears among the stones. Three strangers have already made a fire.');return true;}
+ if(item.startsWith('recruit:')){
+  const id=item.slice(8);if(!COMPANIONS[id]||world().recruited.includes(id))return true;
+  world().recruited.push(id);if(world().active.length<2)world().active.push(id);
+  worldBeat(`${COMPANIONS[id].name} joins your company`,`${COMPANIONS[id].name} agrees to travel with you. ${COMPANIONS[id].bio} ${world().active.includes(id)?'They are now active in the party.':'They will wait at safe waystations until you make room in the party.'}`);return true;
+ }
+ const hops={market:['waymarket','The caravan road opens','Wagon bells lead you toward Waycross, where the old path has become an expensive commodity.'],gate:['waygate','The first toll gate','The road narrows toward a ruined stone arch and its dim blue conductor.'],moor:['northmoor','North beyond the last farms','You leave Waycross beneath high clouds and follow a wavering line into the moor.'],moorTop:['moorBeacon','The tower in the rain','Broken steps climb to a mechanism that has not shone freely for years.'],fen:['glassfen','Into the marsh','Reeds and black pools swallow the old road as the blue signal bends toward Glassfen.'],fenTop:['fenBeacon','An underwater mechanism','In the tower’s shadow, the blue glow bends below the surface.'],port:['harbor','Downriver to Saltmere','The smell of salt replaces the marsh water and a city of dock bells rises ahead.'],portTop:['harborBeacon','Above the harbor','A spiral staircase carries you to the dark lantern room.'],crypt:['undercrypt','Under the founding stone','Your discoveries point beneath the harbor, where a forgotten chamber waits.'],archive:['cryptArchive','The founders’ writing','In the chamber, names appear beneath the forged seals of later rulers.'],toCitadel:['citadel','The Citadel summons','You walk inland with the records and the knowledge of every choice made on the blue road.'],spire:['citadelSpire','The bells sound for you','A chamber lined in stained glass awaits your final testimony.'],heart:['worldheart','The road converges','All the routes you have followed lead to one vast chamber below the mountain.']};
+ if(hops[item]){const [dest,title,text]=hops[item];if(WORLD_STAGES[dest]!==WORLD_STAGES[s.stage])worldTravel(dest,title,text);else worldStep(dest,title,text);return true;}
+ const jobs={cartJob:[10,'The caravan moves','You help repair a broken axle and unload sacks for travelers unable to pay tolls. The merchant pays 10 gp for the labor.'],moorAid:[9,'Food reaches the moor','Isolde has bread enough for the night and pays you 9 gp from her maintenance fund.'],portDelivery:[14,'The sealed goods arrive','Your upriver delivery reaches the families named in the ledger. A harbor captain pays the agreed 14 gp.']};
+ if(jobs[item]){if(wDone(item))return true; if(item==='moorAid'){if(s.inventory.rations<1)return true;s.inventory.rations--;}
+  world().done[item]=true;worldGain(jobs[item][0]);worldLoyalty(1,0,{mara:1,tamsin:1});worldBeat(jobs[item][1],jobs[item][2]);return true;
+ }
+ if(item==='potion'||item==='rations'){const cost=item==='potion'?8:4;if(!worldCanSpend(cost))return true;worldGain(-cost);if(item==='potion')s.potions=Math.min(20,s.potions+1);else s.inventory.rations=Math.min(20,s.inventory.rations+2);worldBeat('A fair exchange',`You pay ${cost} gp for ${item==='potion'?'one Potion of Healing':'two travel rations'}. Your purse now contains ${world().gold} gp.`);return true;}
+ if(item==='moorClue'||item==='fenRescue'||item==='portBroker'||item==='cryptSolve'){
+  if(wDone(item))return true;world().done[item]=true;
+  const spec={moorClue:['perception',13,'The lost maintenance stair','Your reading of the wolf marks reveals the original commons conductor, a safer route to the tower.','The symbols are eroded. You will reach the tower but without a trusted route.'],fenRescue:['survival',12,'A rescue in the marsh','You guide the barge out along the old stones. The grateful crew shares a spare lantern and fresh water.','You help the crew reach shore, but the shifting banks bruise you and damage some supplies.'],portBroker:['insight',12,'The broker’s explanation','The broker inadvertently confirms that the lighthouse controls access rather than simply warning ships.','The broker offers only polished promises; you know someone is earning from the darkness.'],cryptSolve:['investigation',14,'The founder’s cipher','You identify the original binding agreement among towns and gain a piece of evidence no faction can easily deny.','You can read the general story but not the names hidden in the cipher.']};
+  const [skill,dc,title,okText,failText]=spec[item];
+  worldCheck(skill,dc,title,okText,failText,success=>{if(success)world().clues++;if(item==='fenRescue'&&!success)s.hp=Math.max(1,s.hp-2);if(item==='fenRescue'&&success)worldGain(5);});return true;
+ }
+ if(item.startsWith('beacon:')){const [,id,approach]=item.split(':');worldBeacon(id,approach);return true;}
+ if(item==='archivePublish'||item==='archiveSell'){
+  if(wDone('archiveChoice'))return true;world().done.archiveChoice=true;world().done[item]=true;
+  if(item==='archivePublish'){world().clues+=2;worldLoyalty(2,-2,{mara:1,tamsin:1,corvin:-1});worldBeat('A copy for every village','You make the records available to the people whose names they contain. The Syndicate cannot fully erase the truth, and the keepers trust you to use it responsibly.');}
+  else{worldGain(25);worldLoyalty(-3,3,{mara:-1,tamsin:-1,corvin:1});worldBeat('The price of a name',`The Syndicate pays 25 gp for exclusive ownership of your copy. You keep a memory of what you read, but the families named in the book cannot examine the evidence you have sold.`);}
+  return true;
+ }
+ if(item.startsWith('pledge')){if(wDone('citadelPledge'))return true;world().done.citadelPledge=true;world().done[item]=true;
+  if(item==='pledgeKeepers'){worldLoyalty(2,-1,{mara:1,tamsin:1});worldBeat('A council rather than a crown','You pledge to support shared governance of the waylights, and the keepers agree to stand beside you.');}
+  else if(item==='pledgeGuild'){worldGain(15);worldLoyalty(-2,2,{corvin:1,mara:-1});worldBeat('The syndicate charter','You receive 15 gp in advance for your promise to consider private stewardship. No contract yet binds your final choice.');}
+  else worldBeat('No seal above your own','You decline both invitations. The Citadel hears your refusal; the final decision will still be yours.');return true;
+ }
+ if(item==='relief'){if(wDone('relief')||!worldCanSpend(12))return true;world().done.relief=true;world().relief++;worldGain(-12);worldLoyalty(2,0,{tamsin:1});worldBeat('Supplies for people, not towers','You pay 12 gp to send a caravan of grain and lamp oil to the villages most affected by the dark network. The relief is real, even if every beacon cannot be repaired.');return true;}
+ if(['finalRestore','finalRule','finalFree'].includes(item)){
+  if(s.stage!=='worldheart'||world().ending)return true;
+  const ending={finalRestore:'restore',finalRule:'rule',finalFree:'free'}[item];world().ending=ending;world().done.final=true;
+  if(ending==='restore')worldLoyalty(3,-2,{mara:1,tamsin:1,corvin:-1});
+  if(ending==='rule'){worldGain(40);worldLoyalty(-3,3,{mara:-2,tamsin:-2,corvin:1});}
+  if(ending==='free')worldLoyalty(1,-1,{mara:1,tamsin:1});
+  worldStep('roadFinale',ending==='restore'?'The common lights answer':ending==='rule'?'The network bows to a steward':'The central seal breaks',ending==='restore'?'Your promise takes the form of a public charter.':ending==='rule'?'Every route now carries your seal, and the first toll arrives in your ledger.':'The towns will tend their own beacons without a single hand controlling the network.');return true;
+ }
+ return true;
+}
+
+function startWorldBattle(id){const origin=id==='fenFight'?'glassfen':'citadelSpire';const hp=origin==='glassfen'?16:22;
+ world().battle={active:true,origin,enemyHp:hp,enemyMax:hp,enemyAc:origin==='glassfen'?12:14,round:1,phase:'initiative',guard:false,bonus:false,started:false,next:null,result:null};
+ worldBeat('An encounter begins',origin==='glassfen'?'The toll sentinels wade out from the reeds. There is still time to leave or try diplomacy by retreating, but they bar the path while they hold their position.':'The charter enforcers demand that you surrender your evidence. You can still retreat, but their blades make it clear that a refusal will not go unanswered.');
+}
+function worldBattleName(b){return b.origin==='glassfen'?'Marsh toll sentinels':'Charter enforcers';}
+function renderWorldBattle(){const b=world().battle;if(!b)return '';
+ const phases=b.phase==='initiative'?'<p>Combat begins with initiative. Roll to determine who acts first.</p><button class="primary" data-act="wb:init">Roll initiative 🎲</button>':b.phase==='result'?`<div class="tactical-result"><span class="small-caps">ROUND ${b.round} · ACTION RESULT</span><h3>${esc(b.result.title)}</h3><p>${esc(b.result.story)}</p>${b.result.math?`<p>${esc(b.result.math)}</p>`:''}<button class="primary" data-act="wb:continue">Continue →</button></div>`:`<div class="tactical-actions"><strong>YOUR TURN · ROUND ${b.round}</strong><p>Choose one Action. A bonus-action heal is separate. Companions may help when loyal and active.</p><div class="practice-buttons"><button data-act="wb:attack">⚔ Attack</button>${s.classId==='wizard'?`<button data-act="wb:missile" ${s.slots<=0?'disabled':''}>✦ Magic Missile (${s.slots})</button>`:''}<button data-act="wb:dodge">◇ Dodge</button>${s.classId==='fighter'?`<button data-act="wb:wind" ${b.bonus||s.secondWind<1||s.hp>=maxHp()?'disabled':''}>✚ Second Wind</button>`:''}<button data-act="wb:potion" ${b.bonus||s.potions<1||s.hp>=maxHp()?'disabled':''}>⚗ Potion</button><button data-act="wb:retreat">↶ Retreat safely</button></div></div>`;
+ return `<section class="story-screen battle-screen"><div class="combat-banner"><span>CHAPTER ${WORLD_STAGES[b.origin]} · LIVE ENCOUNTER</span><h2>${worldBattleName(b)}</h2><p>Your story and progress are autosaved after every combat result.</p></div><div class="combat-body"><div class="tactical-hps"><div class="tactical-health ally"><span>♥ ${esc(s.heroName)}</span><strong>${s.hp}/${maxHp()} HP</strong><div><i style="width:${100*s.hp/maxHp()}%"></i></div></div><div class="tactical-health foe"><span>⚔ ${worldBattleName(b)}</span><strong>${b.enemyHp}/${b.enemyMax} HP</strong><div><i style="width:${100*b.enemyHp/b.enemyMax}%"></i></div></div></div>${phases}</div></section>`;
+}
+function worldBattlePause(title,story,math,next){const b=world().battle;if(!b)return;b.phase='result';b.result={title,story,math};b.next=next;commit();}
+function worldBattleAction(action){const b=world().battle;if(!b?.active)return true;const key=action.slice(3);
+ if(key==='init'&&b.phase==='initiative'){
+  const dex=Math.floor((hero().stats.DEX-10)/2),p=rand(20),e=rand(20);worldBattlePause(p+dex>=e+1?'You move first':'The sentinels move first',`Initiative decides turn order. Your d20 ${p} ${signed(dex)} = ${p+dex}; opponents roll ${e}+1 = ${e+1}.`,'',p+dex>=e+1?'start':'enemy');return true;
+ }
+ if(key==='continue'&&b.phase==='result'){
+  const next=b.next;b.result=null;b.next=null;
+  if(next==='victory'){
+   const flag=b.origin==='glassfen'?'fenFight':'spireFight';world().done[flag]=true;world().battle=null;worldGain(b.origin==='glassfen'?8:12);worldLoyalty(1,0,{mara:1});worldBeat('The road is yours to walk',`The confrontation ends. You preserve the route and recover ${flag==='fenFight'?8:12} gp in abandoned toll money, which can now fund the journey. The outcome is recorded in your journal.`,true);return true;
+  }
+  if(next==='flee'||next==='defeat'){world().battle=null;if(next==='defeat')s.hp=Math.max(s.hp,1);worldBeat('You withdraw and regroup',next==='defeat'?'Your companion draws the attackers away long enough for you to regain your footing. At 1 HP you can rest, heal, or take a noncombat route.':'You abandon this fight for now. Its opponents will remain until you resolve the situation or choose a different way forward.');return true;}
+  if(next==='enemy'){
+   const r1=rand(20),r2=b.guard?rand(20):null,die=r2===null?r1:Math.min(r1,r2),hit=die===20||(die!==1&&die+3>=hero().ac),before=s.hp,damage=hit?rand(4)+1+(die===20?rand(4):0):0;
+   s.hp=Math.max(0,s.hp-damage);b.guard=false;
+   worldBattlePause(hit?'An enemy strike lands':'The attack misses',hit?`The sentinels deal ${damage} damage. HP ${before} → ${s.hp}.`:'You avoid the blow; your Armor Class and positioning keep you safe.',`d20 ${r1}${r2===null?'':' / '+r2+' → '+die+' (Dodge)'} + 3 vs AC ${hero().ac}`,s.hp<=0?'defeat':!b.started?'start':'player');return true;
+  }
+  if(next==='player'||next==='bonus'||next==='start'){b.phase='player';b.started=true;if(next==='player'){b.round++;b.bonus=false;}commit();return true;}
+ }
+ if(b.phase!=='player')return true;
+ if(key==='retreat'){worldBattlePause('You fall back','You use the disengaging route to break contact with the sentinels. Combat ends only after you continue.','', 'flee');return true;}
+ if(key==='wind'||key==='potion'){
+  if(b.bonus||s.hp>=maxHp())return true;let heal=0,label='';if(key==='wind'&&s.classId==='fighter'&&s.secondWind>0){heal=rand(10)+s.level;s.secondWind--;label='Second Wind';}else if(key==='potion'&&s.potions>0){heal=rand(4)+rand(4)+2;s.potions--;label='Healing potion';}else return true;
+  const before=s.hp;s.hp=Math.min(maxHp(),s.hp+heal);b.bonus=true;worldBattlePause(`${label} restores health`,`HP ${before} → ${s.hp}. Your bonus action is spent; you still have your main Action this turn.`,`${label}: +${s.hp-before} HP`,'bonus');return true;
+ }
+ if(key==='dodge'){b.guard=true;worldBattlePause('You prepare to dodge','Your Action is spent. The sentinel rolls its next attack with disadvantage.','','enemy');return true;}
+ if(key==='attack'||key==='missile'){
+  let damage=0,math='',hit=true,crit=false;const before=b.enemyHp;
+  if(key==='missile'){if(s.classId!=='wizard'||s.slots<=0)return true;s.slots--;damage=rand(4)+rand(4)+rand(4)+3;math=`Magic Missile hits automatically · ${damage} force damage · ${s.slots} slot(s) left`;
+  }else{
+   const die1=rand(20),help=wTrusted('corvin')&&b.round===1?rand(20):null,die=help===null?die1:Math.max(die1,help);crit=die===20;hit=crit||(die!==1&&die+hero().attack>=b.enemyAc);
+   damage=hit?rand(hero().damageDie)+(crit?rand(hero().damageDie):0)+hero().damageMod:0;
+   if(hit&&s.classId==='rogue'&&wTrusted('mara'))damage+=rand(6)+(crit?rand(6):0);
+   if(hit&&wTrusted('mara')&&s.classId!=='rogue')damage+=rand(4);
+   math=`d20 ${die1}${help===null?'':' / '+help+' (Corvin advantage)'} + ${hero().attack} vs AC ${b.enemyAc}${crit?' · CRITICAL':''}`;
+  }
+  b.enemyHp=Math.max(0,b.enemyHp-damage);worldBattlePause(hit?(b.enemyHp<=0?'You overcome the sentinels':'Your attack strikes home'):'Your attack misses',hit?`${key==='missile'?'Magic Missile':hero().attackName} deals ${damage} damage. Enemy HP ${before} → ${b.enemyHp}.${wTrusted('mara')?' Mara helps cover your position.':''}`:'The attack fails to penetrate their defense. '+math,math,b.enemyHp<=0?'victory':'enemy');return true;
+ }
+ return true;
+}
+
+function worldAtlas(){const w=world();const nodes=[
+ ['Tavern',130,415,1,null],['Briar Hollow',260,382,6,null],['Mountain beacon',351,330,8,null],['Waycross',426,310,10,'waygate'],['North Moor',504,182,11,'moor'],['Glassfen',573,402,12,'fen'],['Saltmere',710,430,13,'harbor'],['Archive',739,324,14,null],['Citadel',670,213,15,null],['Worldheart',604,273,16,null]
+ ];
+ const revealed=Math.max(s.unlocked||1,chapter(s.stage));
+ return `<div class="atlas-wrap"><svg class="atlas-svg" viewBox="0 0 860 535" role="img" aria-label="A fantasy regional atlas of the Watchroad network, with known waylights and the current journey"><defs><linearGradient id="land" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#162c2e"/><stop offset="1" stop-color="#10171e"/></linearGradient><filter id="blueGlow"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="860" height="535" rx="13" fill="url(#land)"/><path d="M0 98 Q180 20 345 90 T870 42 L870 0 L0 0Z" fill="#233237"/><path d="M0 520 Q175 400 285 445 T550 520 L860 480 L860 550Z" fill="#20342f"/><path d="M480 0 Q500 90 600 145 Q710 210 860 190" stroke="#35444b" stroke-width="35" fill="none" opacity=".7"/><path d="M490 0 Q515 95 610 157 Q725 220 860 208" stroke="#4c6871" stroke-width="5" fill="none" opacity=".6"/><path d="M110 422 Q185 388 260 382 L350 330 L426 310 L504 182 L670 213 L604 273 L573 402 L710 430 L739 324 L670 213" stroke="#58756e" stroke-width="10" stroke-linecap="round" fill="none" opacity=".55"/><path d="M130 415 L260 382 L351 330 L426 310 L504 182 L670 213 L604 273 L573 402 L710 430 L739 324 L670 213 M426 310 L573 402 M351 330 L604 273" stroke="#6faac2" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="7 8" fill="none" filter="url(#blueGlow)"/><g opacity=".28" fill="#60807b"><path d="M205 135 l30 -60 l30 60z M233 133 l30 -78 l30 78z M286 139 l30 -53 l30 53z M360 180 l40 -95 l40 95z"/><path d="M50 265l36 -65l36 65z M110 268l40 -74l40 74z"/></g>${nodes.map(([name,x,y,minimum,id],idx)=>{const known=minimum<=revealed;const state=id?w.beacons[id]:null;const color=!known?'#39444a':state==='restored'?'#7ce4ba':state==='claimed'?'#edac70':known?'#93c9e8':'#4d5357';const title=known?name:'Unexplored region';return `<g opacity="${known?1:.65}"><circle cx="${x}" cy="${y}" r="${idx===9?11:8}" fill="#11171c" stroke="${color}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="3" fill="${color}"/><text x="${x}" y="${y+(idx%2?29:-17)}" text-anchor="middle" fill="${known?'#e7e0d5':'#8e989b'}" stroke="#10181e" stroke-width="4" paint-order="stroke" font-size="${idx===9?15:13}" font-weight="600">${esc(title)}</text></g>`;}).join('')}<text x="30" y="42" fill="#ddc59e" font-size="20" font-family="Georgia,serif" letter-spacing="3">THE SHATTERED WATCHROAD</text><text x="31" y="63" fill="#a8aeb0" font-size="11" letter-spacing="2">BLUE ROADS · DARK WAYLIGHTS · LIVING TOWNS</text></svg></div><p class="muted">Blue lines connect the known waylights. Green beacons have been restored for public use; amber beacons are privately controlled. Grey names remain unrevealed until you reach them.</p><div class="map-legend"><span>● Public light</span><span>● Privately claimed</span><span>● Unexplored</span></div>`;
+}
+const REGIONAL_WAYPOINTS=[['roadCamp',9,'Travelers’ camp'],['waymarket',10,'Waycross market'],['northmoor',11,'North Moor'],['glassfen',12,'Glassfen'],['harbor',13,'Saltmere Harbor'],['undercrypt',14,'Buried Archive'],['citadel',15,'Citadel of Bells']];
+function worldQuestLedger(){const w=world(),current=s.unlocked||1;const quests=[
+ ['survey',9,'Understand the living map',()=>wDone('survey')],
+ ['gate',10,'Decide the fate of the Waycross beacon',()=>w.beacons.waygate!=='dark'],
+ ['cartJob',10,'Help the Waycross caravan · optional',()=>wDone('cartJob')],
+ ['moor',11,'Restore or claim the North Moor beacon',()=>w.beacons.moor!=='dark'],
+ ['moorAid',11,'Deliver supplies to Isolde · optional',()=>wDone('moorAid')],
+ ['fen',12,'Resolve the Glassfen beacon',()=>w.beacons.fen!=='dark'],
+ ['fenRescue',12,'Help the stranded barge · optional',()=>wDone('fenRescue')],
+ ['port',13,'Resolve the Saltmere harbor light',()=>w.beacons.harbor!=='dark'],
+ ['portDelivery',13,'Deliver upriver provisions · optional',()=>wDone('portDelivery')],
+ ['archiveChoice',14,'Decide the fate of the founding charter',()=>wDone('archiveChoice')],
+ ['citadelPledge',15,'Choose your stance at the Citadel',()=>wDone('citadelPledge')],
+ ['relief',15,'Fund a relief caravan · optional',()=>wDone('relief')],
+ ['final',16,'Settle the future of the Watchroad',()=>Boolean(w.ending)]
+ ].filter(([,minimum])=>minimum<=current);
+ return `<section class="world-quest-section"><h3 class="world-title">Quest ledger</h3><p class="muted">Completed objectives stay recorded. Optional tasks can be revisited using the map while the campaign remains open.</p>${quests.map(([id,ch,title,done])=>`<div class="world-quest ${done()?'done':''}"><span>${done()?'✓':'◇'}</span><div><b>${esc(title)}</b><small>Chapter ${ch}${done()?' · Complete':' · Available'}</small></div></div>`).join('')}</section>`;
+}
+function worldMapTravel(action){const destination=action.slice(8),route=REGIONAL_WAYPOINTS.find(([stage])=>stage===destination);if(!route)return true;
+ if(!WORLD_STAGES[s.stage]||s.stage==='roadFinale'||world().battle?.active||s.pending||s.storyResult||s.mindOffer||s.finalTest?.active||route[1]>(s.unlocked||1)||destination===s.stage)return true;
+ const w=world();w.day+=1;let cost='one travel ration';
+ if(s.inventory.rations>0)s.inventory.rations--;else{s.hp=Math.max(1,s.hp-2);cost='2 HP from fatigue (no travel rations left)';}
+ const from=s.stage;s.stage=destination;modal=null;
+ outcome('The road leads back',`You follow the known blue markers from ${WORLD_CHAPTERS.find(([n])=>n===WORLD_STAGES[from])?.[1]||TITLES[from]||'your last stop'} to ${route[2]}. Traveling takes one day and costs ${cost}. Older local quests can be continued here without changing the final choices you have already made.`);
+ commit();return true;
+}
+function renderWorldMap(){if(!s.classId||!world())return '<p>Begin your adventure to discover the region.</p>';const w=world();return `${worldAtlas()}<div class="world-metrics"><div>Gold <b>${w.gold} gp</b></div><div>Day <b>${w.day}</b></div><div>Open lights <b>${w.mercy}</b></div><div>Claimed lights <b>${w.dominion}</b></div></div><h3 class="world-title">Your route</h3><p class="modal-lead">Your party follows the road through story choices. The map records discovered locations. Choose a known waypoint below to travel there; it costs a day and supplies.</p><div class="world-location-list">${Object.entries(w.beacons).map(([id,v])=>`<div><b>${esc(({waygate:'Waycross',moor:'North Moor',fen:'Glassfen',harbor:'Saltmere'})[id])}</b><span>${v==='dark'?'Not yet resolved':v==='restored'?'Open to everyone':'Privately controlled'}</span></div>`).join('')}</div><h3 class="world-title">Travel the known roads</h3><p class="muted">Known waypoints can be revisited to finish errands. Each journey takes one day and a ration, or 2 HP from fatigue if you have no rations. Your party cannot travel during combat or after the final ending.</p><div class="world-travel-list">${REGIONAL_WAYPOINTS.filter(([,level])=>level<=(s.unlocked||1)).map(([stage,level,name])=>`<button data-act="wtravel:${stage}" ${s.stage===stage||s.stage==='roadFinale'||w.battle?.active||s.storyResult||s.pending?'disabled':''}>${esc(name)} <small>Chapter ${level}</small></button>`).join('')}</div>${worldQuestLedger()}`;}
+function renderParty(){const w=world();return `<p class="modal-lead">Recruit allies at the traveling camp. You can travel with two active companions; other recruits remain at the nearest safe waypoint. Allies contribute +2 to relevant story checks when active and loyal.</p><div class="world-metrics"><div>Gold <b>${w.gold} gp</b></div><div>Active <b>${w.active.length}/2</b></div><div>Keepers <b>${signed(w.reputation.keepers)}</b></div><div>Syndicate <b>${signed(w.reputation.syndicate)}</b></div></div><div class="world-party">${Object.entries(COMPANIONS).map(([id,c])=>{const recruited=w.recruited.includes(id),active=w.active.includes(id),loyal=w.trust[id]>-2;return `<section class="world-person"><div><b>${esc(c.name)}</b><small>${esc(c.role)} · Trust ${signed(w.trust[id])}</small><p>${esc(c.bio)}</p></div>${recruited?`<button data-act="wparty:${id}" ${!loyal?'disabled':''}>${active?'Send to camp':w.active.length>=2?'Swap into party':'Add to party'}</button>`:'<small>Meet at the Chapter 9 camp to recruit</small>'}</section>`;}).join('')}</div><p class="muted">Recruits whose trust falls too low temporarily refuse active service. Party changes are possible between encounters, not while resolving an action.</p>`;}
+function worldPartyAction(action){const id=action.slice(7),w=world();if(!COMPANIONS[id]||!w.recruited.includes(id)||w.trust[id]<=-2||s.storyResult||s.pending||s.stage==='combat'||s.stage==='crossingBattle'||s.finalTest?.active||world().battle?.active)return true;
+ if(w.active.includes(id))w.active=w.active.filter(x=>x!==id);else if(w.active.length<2)w.active.push(id);else{w.active.shift();w.active.push(id);}record(`${COMPANIONS[id].name} ${w.active.includes(id)?'joins the active traveling party':'waits at the nearest safe camp'}.`);commit(false);return true;
+}
+
+Object.assign(CAMPAIGN_CHAPTER,WORLD_STAGES);
+Object.assign(CAMPAIGN_ART,WORLD_ART);
+Object.assign(CHAPTER_START,WORLD_START);
+for(const [n,name,desc] of WORLD_CHAPTERS)CHAPTER_NAMES.push(name);
+WORLD_NOTES.push(
+ [9,'The blue lines on the mountain map','The network connects many independent waystations far outside Blackwood. The map is a living record, not a magical road that teleports travelers.'],
+ [10,'The markets of Waycross','Road tolls create shortages for travelers who cannot pay. Gold changes what can be bought, but not every promise can be purchased.'],
+ [11,'North Moor waystations','The moor sentries once maintained shared lamps, shelters and markers. Their work became obscured when the signal was routed toward private estates.'],
+ [12,'Glassfen crossings','Marsh pilots disagree on how a beacon should be controlled. The old builders intended travelers from both shores to share its guidance.'],
+ [13,'Saltmere tariffs','Harbor guilds built profitable systems around the loss of public navigation lights. Repairs can threaten established incomes.'],
+ [14,'The founders’ accord','The first keepers agreed that no one should own every route. Later versions of the accord were altered to justify tolls.'],
+ [15,'The Citadel’s two seals','The public keepers and the Syndicate seek different structures for governing the beacons. Companions may prefer different allies.'],
+ [16,'The cost of a common road','A road is not repaired by one spell alone. It needs labor, trust, supply lines, money, and people who agree to keep it open.']);
 
 s=load();
 render();

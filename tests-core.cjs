@@ -591,3 +591,6 @@ test('Older saves infer a prior failed bargain from the journal even after lante
  assert.match(g.app.innerHTML,/After refusing your first bargain/);
  g.act('c:toVillage');assert.equal(g.read().flags.bridgeRefused,true);
 });
+
+// Act II campaign regression checks are loaded by the existing GitHub Actions test command.
+require('./tests-world.cjs');
