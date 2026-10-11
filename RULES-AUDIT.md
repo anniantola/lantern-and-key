@@ -1,3 +1,11 @@
+## v3.2.3 — Regional combat results and evidence provenance
+
+**Action Surge pause persistence:** Regional combat has a distinct pending `surge` transition following a Fighter attack result. The world-save normalizer now preserves that transition, so reloading does not lose the active encounter. The result/Continue mechanic remains unchanged.
+
+**Companion evidence:** The same Mara patrol account is a unique source of evidence, regardless of how many later chapters allow the player to revisit that conversation. Listening again improves companion trust but cannot duplicate its evidentiary value. This is authored quest logic, not a new official D&D skill rule. The save migration deducts only duplicates supported by surviving historical journal records; missing records do not trigger speculative clue deductions.
+
+---
+
 ## v3.2.2 — Narrative adjudication and location rules
 
 - A failed Glassfen rescue check represents a costly **successful evacuation**, not a still-unresolved rescue. It awards no success-only gold and still imposes the HP cost. The rescue-completed state is reconciled in older saves.

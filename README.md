@@ -1,3 +1,18 @@
+# Lantern & Key v3.2.3 — Combat Resume & Distinct Evidence
+
+This is a focused continuity and save-safety update for the 16-chapter Watchroad campaign. It retains all v3.2.2 story chapters, existing optional adventures, lantern systems, money, companion relationships, mobile tabs, and GitHub Actions configuration.
+
+- **Fighter save/reload:** A regional battle paused just after a Fighter's attack, when the result offers **Action Surge**, survives saving, importing and reloading. Continuing the result returns to the same encounter with the correct turn state; it no longer silently drops the fight.
+- **Unique companion evidence:** Listening to Mara's patrol testimony produces **one distinct clue overall**, not another clue each time the same story is retold in a later chapter. You can still listen again to build trust. Conversations with other companions remain unchanged.
+- **Older saves:** If an older journal unambiguously records multiple copies of Mara's listen-result text, the excess clue count is reconciled once. Where the historical record is incomplete, unrelated evidence is preserved and further duplicate awards are blocked. Existing quests, items, HP and choices are untouched.
+- **Tests:** Five new focused regression tests cover saving during the paused Action Surge window, continuing the turn, repeated conversations, conversations without evidence, and one-time older-save migration. **194** tests run as part of the existing Node test command (the exact count is shown below).
+
+**Update your GitHub Pages repository:** Replace the root-level files `game.js`, `tests-world.cjs`, `sw.js`, `README.md` and optionally `RULES-AUDIT.md`. There are no new assets or folders. The existing `.github/workflows/deploy.yml` works unchanged. Run `node --test tests-core.cjs` before publishing.
+
+**Before replacing files:** Export a JSON save from Settings. Existing save data remains compatible, and no new save format is required.
+
+---
+
 # Lantern & Key v3.2.2 — Narrative Integrity Patch
 
 This update repairs the continuity and consequence issues identified in the v3.2.1 full-campaign audit. The 16 chapters, optional dungeons, companion quests, four waylight resolutions, skill checks, shops, and Last Lantern remain playable. The existing JSON save format and GitHub Pages installation are preserved.

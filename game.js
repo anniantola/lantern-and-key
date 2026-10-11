@@ -848,6 +848,16 @@ function initialSave(){return {frontier:null,version:1,stage:'welcome',flags:{},
 function upgradeSave(raw){
  const d=initialSave(),x={...d,...raw};
  x.frontier=raw.frontier?normalizeWorld(raw.frontier):null;
+ // v3.2.3: older conversations gave another clue every time Mara repeated the
+ // same patrol story. Reconcile only duplicates proven by journal records; keep
+ // unrelated evidence and never run this migration more than once.
+ if(x.frontier&&!x.frontier.done['migration:maraEvidenceV323']){
+  const journal=Array.isArray(raw.journal)?raw.journal:[];
+  const maraListenCount=journal.filter(entry=>typeof entry?.text==='string'&&entry.text.startsWith('You listen before deciding: Mara shares another part of the story')).length;
+  if(maraListenCount>1)x.frontier.clues=Math.max(0,x.frontier.clues-(maraListenCount-1));
+  if(maraListenCount||Object.keys(x.frontier.done).some(key=>/^talk:mara:(?:9|10|11|12|13|14|15|16)$/.test(key)))x.frontier.done['evidence:maraPatrol']=true;
+  x.frontier.done['migration:maraEvidenceV323']=true;
+ }
  if(x.frontier?.battle&&x.frontier.battle.origin!==raw.stage)x.frontier.battle=null;
  x.flags=(raw.flags && typeof raw.flags==='object' && !Array.isArray(raw.flags))?raw.flags:{};
  // Preserve a paid-for lantern ward in v2.4 saves even if a later failed
@@ -1538,7 +1548,7 @@ function normalizeWorld(data){const fresh=freshWorld();if(!data||typeof data!=='
  clean.freeAccordCost=data.freeAccordCost&&typeof data.freeAccordCost==='object'&&!Array.isArray(data.freeAccordCost)?Object.fromEntries(['claims','days','spentGold','spentRations','spentHp'].map(k=>[k,clamp(Number.isFinite(data.freeAccordCost[k])?Math.trunc(data.freeAccordCost[k]):0,0,9999)])):null;
  for(const k of ['clues','mercy','dominion','relief'])clean[k]=clamp(Number.isFinite(data[k])?Math.trunc(data[k]):0,0,50);
  clean.ending=['restore','rule','free'].includes(data.ending)?data.ending:null;
- const b=data.battle;clean.battle=b&&b.active===true&&[...Object.keys(WORLD_STAGES)].includes(b.origin)&&Number.isFinite(b.enemyHp)&&Number.isFinite(b.enemyMax)&&['initiative','player','result'].includes(b.phase)?{active:true,origin:b.origin,encounter:typeof b.encounter==='string'&&/^[a-zA-Z]{3,22}$/.test(b.encounter)?b.encounter:null,enemyHp:clamp(b.enemyHp,0,60),enemyMax:clamp(b.enemyMax,1,60),enemyAc:clamp(Number(b.enemyAc)||12,1,30),round:clamp(Number(b.round)||1,1,100),phase:b.phase,guard:!!b.guard,bonus:!!b.bonus,started:!!b.started,allyUsed:!!b.allyUsed,actionUsed:!!b.actionUsed,extra:!!b.extra,hidden:!!b.hidden,next:['player','enemy','victory','defeat','flee','bonus','start'].includes(b.next)?b.next:null,result:b.result&&typeof b.result==='object'?{title:String(b.result.title||'').slice(0,200),story:String(b.result.story||'').slice(0,1000),math:String(b.result.math||'').slice(0,400)}:null}:null;
+ const b=data.battle;clean.battle=b&&b.active===true&&[...Object.keys(WORLD_STAGES)].includes(b.origin)&&Number.isFinite(b.enemyHp)&&Number.isFinite(b.enemyMax)&&['initiative','player','result'].includes(b.phase)?{active:true,origin:b.origin,encounter:typeof b.encounter==='string'&&/^[a-zA-Z]{3,22}$/.test(b.encounter)?b.encounter:null,enemyHp:clamp(b.enemyHp,0,60),enemyMax:clamp(b.enemyMax,1,60),enemyAc:clamp(Number(b.enemyAc)||12,1,30),round:clamp(Number(b.round)||1,1,100),phase:b.phase,guard:!!b.guard,bonus:!!b.bonus,started:!!b.started,allyUsed:!!b.allyUsed,actionUsed:!!b.actionUsed,extra:!!b.extra,hidden:!!b.hidden,next:['player','enemy','victory','defeat','flee','bonus','start','surge'].includes(b.next)?b.next:null,result:b.result&&typeof b.result==='object'?{title:String(b.result.title||'').slice(0,200),story:String(b.result.story||'').slice(0,1000),math:String(b.result.math||'').slice(0,400)}:null}:null;
  if(clean.battle?.phase==='result'&&(!clean.battle.result||!clean.battle.next))clean.battle=null;
  return clean;
 }
@@ -1811,7 +1821,7 @@ function companionDialogueScene(){const d=world().dialogue,c=COMPANIONS[d.id];co
  const subjects={mara:['Mara spreads her patrol map across a dry stone. Several routes are marked not with distances but with names of those who went missing.','“I can guide us past the worst of it,” she says. “But I need to know what we are willing to risk for strangers.”'],tamsin:['Tamsin takes a quiet moment to clean her instruments. She tells you about a patient who paid for treatment by repairing a stranger’s roof.','“People remember who stayed when the danger stopped being glorious,” she says. “What sort of help do you believe in?”'],corvin:['Corvin counts a handful of copper coins, then deliberately scatters them across the table. He shows you how small tolls become impossible debts.','“I could make you wealthy,” he says, “but I would rather you understand whose money it really is.”']};
  const situated={10:'The cries of the market traders carry through the doorway.',11:'The moor wind pulls at your cloaks as you speak.',12:'Across the fen, lights flicker in distant windows.',13:'Dock bells ring while the harbor counts its losses.',14:'The archive dust settles over forgotten names.',15:'The Citadel’s delegates argue in the next hall.',16:'The blue network hums beneath your feet.'};
  return {chapter,label:'COMPANION CONVERSATION',heading:'A moment with '+c.name,text:[...subjects[d.id],situated[chapter]||'For a moment, the road is quiet enough to talk.',`Your history with ${c.name} matters: trust is currently ${signed(world().trust[d.id])}. Your answer will shape the relationship.`],lesson:'Companions have personal convictions. You may listen, prepare together, or demand obedience. Different responses affect trust and the support they offer later.',choices:[
- wChoice('bond:'+d.id+':listen','Listen and ask what they need','Gain trust and learn more of their past','♡'),
+ wChoice('bond:'+d.id+':listen','Listen and ask what they need',d.id==='mara'?(world().done['evidence:maraPatrol']?'Gain trust · revisit Mara’s story (no new evidence)':'Gain trust · uncover one distinct patrol clue'):'Gain trust and learn more of their past','♡'),
  wChoice('bond:'+d.id+':plan','Make a plan together','Gain situational help on a later ability check','◎'),
  wChoice('bond:'+d.id+':command','Demand that they follow your orders','Assert authority at a possible cost to trust','♛'),
  wChoice('bond:'+d.id+':later','Leave the conversation for another time','No decision or trust change yet','↶')]};
@@ -2004,8 +2014,15 @@ function worldAdditionalAction(item){const w=world();
  if(response==='later'){w.dialogue=null;worldBeat('Words left for another day',`You give ${COMPANIONS[id].name} room to think. The conversation remains available later.`);return true;}
  if(!['listen','plan','command'].includes(response))return true;
  w.done['talk:'+id+':'+d.chapter]=true;w.dialogue=null;
- if(response==='listen'){w.trust[id]=clamp(w.trust[id]+2,-3,5);if(id==='mara')w.clues++;
-  worldBeat('You listen before deciding',`${COMPANIONS[id].name} shares another part of the story they had kept to themselves. The conversation changes your understanding of the region, and their trust rises to ${signed(w.trust[id])}.`,true);}
+ if(response==='listen'){
+  w.trust[id]=clamp(w.trust[id]+2,-3,5);
+  const newMaraClue=id==='mara'&&!w.done['evidence:maraPatrol'];
+  if(newMaraClue){w.clues++;w.done['evidence:maraPatrol']=true;}
+  const story=newMaraClue?'Mara finally explains how the vanished patrol markers were deliberately moved. You can use this single, distinct testimony as a clue.'
+   :id==='mara'?'Mara talks through the patrol history with you again. You deepen your understanding and her trust, but the same testimony is not a new piece of evidence.'
+   :`${COMPANIONS[id].name} shares more about the people and worries that shaped their choices.`;
+  worldBeat('You listen before deciding',`${story} Trust rises to ${signed(w.trust[id])}.`,true);
+ }
  if(response==='plan'){const skill=COMPANIONS[id].skill;w.skillAid={id,skill};w.trust[id]=clamp(w.trust[id]+1,-3,5);
   worldBeat('A plan made together',`${COMPANIONS[id].name} helps prepare you for a future ${skill} check. You gain a one-use +2 bonus when that skill is next rolled. Trust rises to ${signed(w.trust[id])}.`,true);}
  if(response==='command'){w.trust[id]=clamp(w.trust[id]-1,-3,5);if(w.trust[id]<=-2)w.active=w.active.filter(x=>x!==id);

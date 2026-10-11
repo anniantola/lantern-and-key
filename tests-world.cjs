@@ -758,3 +758,71 @@ test('Import normalization bounds recorded independence costs',()=>{
  assert.equal(n.freeAccordCost.claims,9999);
  assert.equal(n.freeAccordCost.spentGold,0);
 });
+
+// v3.2.3 — keep mid-Action-Surge results on load, and deduplicate Mara's evidence.
+test('Fighter attack paused before Action Surge survives JSON save/load and can continue',()=>{
+ const t=seeded('glassfen',0),s=t.get();s.unlocked=12;s.classId='fighter';s.level=4;s.actionSurge=1;s.frontier=t.freshWorld();
+ t.startWorldBattle('fenFight');s.storyResult=null;s.outcome=null;
+ const b=s.frontier.battle;b.phase='player';b.enemyHp=30;b.enemyMax=30;b.actionUsed=false;b.extra=false;
+ t.worldBattleAction('wb:attack');
+ assert.equal(b.phase,'result');assert.equal(b.next,'surge');assert.equal(b.actionUsed,true);
+ const copy=JSON.parse(JSON.stringify(s));
+ assert.equal(validateSave(copy).stage,'glassfen');
+ assert.equal(t.normalizeWorld(copy.frontier).battle.next,'surge');
+ t.seed(copy);
+ assert.equal(t.get().stage,'glassfen');
+ assert.equal(t.get().frontier.battle?.phase,'result');
+ assert.equal(t.get().frontier.battle?.next,'surge');
+ t.worldBattleAction('wb:continue');
+ assert.equal(t.get().frontier.battle?.phase,'player');
+ assert.equal(t.get().frontier.battle?.actionUsed,true);
+ t.worldBattleAction('wb:surge');
+ assert.equal(t.get().frontier.battle?.phase,'result');
+ assert.equal(t.get().frontier.battle?.extra,true);
+ assert.equal(t.get().actionSurge,0);
+});
+test("Mara's patrol testimony grants exactly one clue across repeated chapter conversations",()=>{
+ const t=seeded('waymarket'),s=t.get();s.unlocked=16;s.frontier=t.freshWorld();
+ s.frontier.recruited=['mara'];s.frontier.active=['mara'];
+ for(const [chapter,stage] of [[10,'waymarket'],[11,'northmoor'],[12,'glassfen']]){
+  s.stage=stage;
+  use(t,'talk:mara');
+  assert.equal(s.frontier.dialogue?.chapter,chapter);
+  if(chapter>10)assert.match(t.worldScene().choices.find(c=>c.key==='w:bond:mara:listen').detail,/no new evidence/);
+  use(t,'bond:mara:listen');
+  assert.equal(s.frontier.clues,1,`repeated listening in chapter ${chapter} cannot produce additional evidence`);
+  assert.equal(s.frontier.done['talk:mara:'+chapter],true);
+ }
+ assert.equal(s.frontier.done['evidence:maraPatrol'],true);
+ assert.equal(s.frontier.trust.mara,5);
+ const serialized=JSON.parse(JSON.stringify(s));t.seed(serialized);
+ assert.equal(t.get().frontier.clues,1);
+ assert.equal(t.get().frontier.done['evidence:maraPatrol'],true);
+});
+test("Mara plans and commands do not create evidence; another companion cannot award her clue",()=>{
+ const t=seeded('waymarket'),s=t.get();s.unlocked=16;s.frontier=t.freshWorld();
+ s.frontier.recruited=['mara','tamsin'];s.frontier.active=['mara','tamsin'];
+ use(t,'talk:mara');use(t,'bond:mara:plan');assert.equal(s.frontier.clues,0);
+ s.stage='northmoor';use(t,'talk:mara');use(t,'bond:mara:command');assert.equal(s.frontier.clues,0);
+ s.stage='glassfen';use(t,'talk:tamsin');use(t,'bond:tamsin:listen');assert.equal(s.frontier.clues,0);
+});
+test('Legacy saves reconcile only verified repeated Mara testimony and never do so twice',()=>{
+ const t=seeded('harbor'),s=t.get();s.frontier=t.freshWorld();s.unlocked=13;
+ s.frontier.clues=6;
+ for(const chapter of [10,11,12])s.frontier.done['talk:mara:'+chapter]=true;
+ s.journal=[...Array.from({length:3},(_,n)=>({kind:'success',time:'2026-10-11T00:00:00Z',text:'You listen before deciding: Mara shares another part of the story they had kept to themselves. The conversation changes your understanding of the region, and their trust rises to +'+(n+1)+'.'}))];
+ t.seed(JSON.parse(JSON.stringify(s)));
+ assert.equal(t.get().frontier.clues,4);
+ assert.equal(t.get().frontier.done['evidence:maraPatrol'],true);
+ assert.equal(t.get().frontier.done['migration:maraEvidenceV323'],true);
+ t.seed(JSON.parse(JSON.stringify(t.get())));
+ assert.equal(t.get().frontier.clues,4);
+});
+test('An older Mara save without a complete journal does not lose unrelated evidence',()=>{
+ const t=seeded('harbor'),s=t.get();s.frontier=t.freshWorld();s.unlocked=13;
+ s.frontier.clues=5;s.frontier.done['talk:mara:10']=true;
+ s.journal=[];
+ t.seed(JSON.parse(JSON.stringify(s)));
+ assert.equal(t.get().frontier.clues,5);
+ assert.equal(t.get().frontier.done['evidence:maraPatrol'],true);
+});
