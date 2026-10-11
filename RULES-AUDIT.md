@@ -1,3 +1,9 @@
+## v3.2 — Homebrew adventure equipment and companion assistance
+
+The five additional expedition sites, emberglass, shrine recharging, weapon improvement, protective buckle, flashpowder, field bandages, and one-use companion planning bonus are original **homebrew tutorial mechanics**, not published SRD 5.2.1 item or feat entries. Their use is deliberately explicit in the in-game interface. A purchased weapon upgrade grants +1 to the preset hero's Act II attack roll and damage; the protective buckle grants +1 AC in that combat system; each is a simplified equipment mechanic, not a full equipment proficiency or attunement simulation. The Last Lantern remains nonconsumable and its sparks are a separate, limited resource. Companion conversations are persistent narrative choices and can alter relationships or grant a single future skill bonus. This addition does not imply that D&D requires an NPC to provide automatic bonuses for conversation.
+
+---
+
 ## v3.0 — The Shattered Watchroad: Campaign mechanics
 
 - Act II covers Chapters 9–16 with a regional atlas, 3 recruitable NPC companions (up to 2 active), gold, paid work, shops, faction standings and branching beacon ownership. **All of these are homebrew, scenario-specific mechanics.**
@@ -101,3 +107,8 @@ The campaign now includes milestone advancement from level 2 to level 3 on reach
 **Original narrative mechanics:** Companion trust, faction reputation, seven major challenge gates, waylight ownership, Last Lantern sparks, businesses, bribes, investments, and the ending mandate/charter rules are all original homebrew systems. Nine Act II combat encounters are optional, with alternative solutions. Combatants, battle ranges and resolution are deliberately simplified. These choices teach resource management, negotiation, exploration and causal consequences rather than claiming to replicate every published rule.
 
 **Tests:** See the v3.1 README for the full 125-test result and browser walkthrough scope. The save format retains `version: 1` for compatibility. New state fields have defaults and are bounded and sanitized by save validation/normalization.
+
+
+## v3.2 — Regional light restoration
+
+The reusable silver wolf-key, self-aligning waylight conductors, lantern sparks, and independent stewardship are fictional campaign-specific mechanisms. They are not part of the official D&D rules. Four choices remain distinct: one spark consumed for a magical public restoration; a reusable key for mechanical public restoration; a day of labor and (when available) one ration for independent stewardship; or private guild control with monetary and reputational consequences. These outcomes are recorded for each waylight and persist through save/load.

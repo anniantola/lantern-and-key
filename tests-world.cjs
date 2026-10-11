@@ -59,7 +59,7 @@ test('Repeated private claims can prompt active companions to leave',()=>{
  const w=t.get().frontier;assert.deepEqual(Array.from(w.active),[]);assert.equal(w.dominion,2);assert.equal(w.gold,50);
 });
 test('Public restoration rewards community trust and a smaller payment',()=>{
- const t=seeded();for(const key of ['begin','camp','market','gate','challenge:wayInvestigation','continue:wayInvestigation','beacon:waygate:restored'])use(t,key);
+ const t=seeded();for(const key of ['begin','camp','market','gate','challenge:wayInvestigation','continue:wayInvestigation','beacon:waygate:spark'])use(t,key);
  const w=t.get().frontier;assert.equal(w.beacons.waygate,'restored');assert.equal(w.gold,23);assert.equal(w.mercy,1);assert.equal(w.reputation.keepers,2+(t.get().checks.at(-1)?.success?1:0));
 });
 test('Companion skill bonus contributes only when ally is active and loyal',()=>{
@@ -161,7 +161,7 @@ test('Act II travel consistently consumes one provision even on automatic chapte
  const t=seeded();for(const k of ['begin','camp','market'])use(t,k);
  const s=t.get();const before=s.inventory.rations;use(t,'gate'); // intra-chapter scene, no travel day
  assert.equal(s.inventory.rations,before);
- use(t,'challenge:wayInvestigation');use(t,'continue:wayInvestigation');use(t,'beacon:waygate:restored');
+ use(t,'challenge:wayInvestigation');use(t,'continue:wayInvestigation');use(t,'beacon:waygate:spark');
  const day=s.frontier.day;use(t,'moor');assert.equal(s.frontier.day,day+1);assert.equal(s.inventory.rations,Math.max(0,before-1));
 });
 test('Milestone levels 3 and 4 unlock across the expanded campaign and survive save validation',()=>{
@@ -210,7 +210,7 @@ test('Every companion personal quest contains a meaningful moral choice and upda
 });
 test('Bought armor increases AC; private investment consumes gold and is single use',()=>{
  const t=seeded('waymarket');const s=t.get();s.unlocked=10;s.frontier=t.freshWorld();s.frontier.gold=35;
- use(t,'buy:armor');assert.equal(s.frontier.gold,15);assert.equal(s.frontier.gear.armor,1);
+ use(t,'shop:open');use(t,'buy:armor');assert.equal(s.frontier.gold,15);assert.equal(s.frontier.gear.armor,1);
  use(t,'buy:armor');assert.equal(s.frontier.gold,15);
 });
 test('Worldheart restoration reconciles privately held beacons and actually pays the buyout',()=>{
@@ -349,4 +349,181 @@ test('A level-3 Rogue sheet lists updated Sneak Attack and Cunning Action',()=>{
  const t=seeded();const s=t.get();s.classId='rogue';s.level=3;
  const html=t.renderSheet();
  assert.match(html,/Sneak Attack: \+2d6/);assert.match(html,/Cunning Action/);assert.match(html,/Fast Hands/);
+});
+
+// v3.2: optional expedition content, equipment, lamp fuel and interactive party bonding.
+const NEW_SITES=[['oldDepot','waymarket',10,'depotThugs'],['moorWatch','northmoor',11,'watchRavagers'],['fenReliquary','glassfen',12,'reedWights'],['saltCistern','harbor',13,'cisternBlades'],['bellCatacomb','citadel',15,'bellSentinel']];
+for(const [id,hub,chapter,enemy] of NEW_SITES){
+ test(`Optional adventure ${id} can be visited and resolved without combat, rewarding loot once`,()=>{
+  const t=seeded(hub),s=t.get();s.unlocked=chapter;s.frontier=t.freshWorld();
+  assert(t.worldScene().choices.some(x=>x.key==='w:site:enter:'+id));
+  use(t,'site:enter:'+id);assert.equal(s.stage,id);
+  const gold=s.frontier.gold,glass=s.frontier.emberglass;
+  use(t,'site:study:'+id);assert.equal(s.frontier.done['site:'+id],true);assert(s.frontier.gold>gold);assert(s.frontier.emberglass>glass);
+  const finalGold=s.frontier.gold;use(t,'site:study:'+id);assert.equal(s.frontier.gold,finalGold);
+  assert(t.worldScene().choices.some(x=>x.key==='w:site:back:'+id));use(t,'site:back:'+id);assert.equal(s.stage,hub);
+  assert.equal(validateSave(JSON.parse(JSON.stringify(s))).stage,hub);
+ });
+ test(`Optional adventure ${id} has a live combat route and is not replayed after victory`,()=>{
+  const t=seeded(hub),s=t.get();s.unlocked=chapter;s.frontier=t.freshWorld();
+  use(t,'site:enter:'+id);use(t,'site:fight:'+id);const b=s.frontier.battle;
+  assert.equal(b.active,true);assert.equal(b.encounter,enemy);
+  b.phase='result';b.enemyHp=0;b.result={title:'Defeated',story:'Victory',math:''};b.next='victory';
+  t.worldBattleAction('wb:continue');assert.equal(s.frontier.battle,null);assert.equal(s.frontier.done['site:'+id],true);
+  const n=s.frontier.emberglass;use(t,'site:fight:'+id);assert.equal(s.frontier.emberglass,n);
+ });
+}
+test('New shop opens as dedicated scene and purchases affect purse and equipment',()=>{
+ const t=seeded('waymarket'),s=t.get();s.unlocked=10;s.frontier=t.freshWorld();s.frontier.gold=160;
+ assert(t.worldScene().choices.some(x=>x.key==='w:shop:open'));
+ use(t,'shop:open');assert.equal(s.frontier.shopOpen,true);assert(t.worldScene().choices.some(x=>x.key==='w:shop:weapon'));
+ use(t,'shop:weapon');use(t,'shop:shield');use(t,'shop:flash');use(t,'shop:bandage');use(t,'shop:ember');
+ assert.equal(s.frontier.gold,160-25-18-9-6-15);
+ assert.equal(s.frontier.gear.weapon,1);assert.equal(s.frontier.gear.shield,1);
+ assert.equal(s.frontier.flashpowder,1);assert.equal(s.frontier.bandages,1);assert.equal(s.frontier.emberglass,1);
+ const balance=s.frontier.gold;use(t,'shop:weapon');assert.equal(s.frontier.gold,balance);
+ use(t,'shop:close');assert.equal(s.frontier.shopOpen,false);
+});
+test('Field bandage can heal and cannot be used at full HP',()=>{
+ const t=seeded('waymarket'),s=t.get();s.unlocked=10;s.frontier=t.freshWorld();
+ s.frontier.bandages=1;s.hp=3;
+ use(t,'use:bandage');assert.equal(s.frontier.bandages,0);assert(s.hp>3);
+ s.frontier.bandages=1;s.hp=999;const previous=s.hp;use(t,'use:bandage');assert.equal(s.frontier.bandages,1);assert.equal(s.hp,previous);
+});
+test('Shrine attunement recharges one spark once and never consumes the lantern',()=>{
+ const t=seeded('moorWatch'),s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.frontier.done['site:moorWatch']=true;
+ s.lanternSparks=1;
+ use(t,'shrine:attune:moorWatch');assert.equal(s.lanternSparks,2);
+ assert.equal(s.inventory.lantern,1);use(t,'shrine:attune:moorWatch');assert.equal(s.lanternSparks,2);
+});
+test('Shrine trade consumes emberglass before gold and restores up to three sparks',()=>{
+ const t=seeded('harbor'),s=t.get();s.unlocked=13;s.frontier=t.freshWorld();s.frontier.emberglass=1;s.lanternSparks=0;
+ use(t,'recharge:trade');assert.equal(s.frontier.emberglass,0);assert.equal(s.lanternSparks,2);assert.equal(s.frontier.gold,18);
+ use(t,'recharge:trade');assert.equal(s.lanternSparks,3);assert.equal(s.frontier.gold,6);
+});
+test('Companion dialogue allows listening and changes persistent trust',()=>{
+ const t=seeded('northmoor'),s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.frontier.recruited=['mara'];s.frontier.active=['mara'];
+ use(t,'talk:mara');assert.equal(s.frontier.dialogue.id,'mara');
+ assert(t.worldScene().choices.some(c=>c.key==='w:bond:mara:listen'));
+ use(t,'bond:mara:listen');assert.equal(s.frontier.dialogue,null);assert.equal(s.frontier.trust.mara,2);assert.equal(s.frontier.done['talk:mara:11'],true);
+ assert(!t.worldScene().choices.some(c=>c.key==='w:talk:mara'));
+ const oldTrust=s.frontier.trust.mara;use(t,'bond:mara:listen');assert.equal(s.frontier.trust.mara,oldTrust);
+});
+test('Companion joint planning creates one-time skill help that is consumed when checked',()=>{
+ const t=seeded('northmoor'),s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.frontier.recruited=['mara'];s.frontier.active=['mara'];
+ use(t,'talk:mara');use(t,'bond:mara:plan');assert.equal(s.frontier.skillAid.skill,'perception');
+ use(t,'moorClue');assert.equal(s.frontier.skillAid,null);
+});
+test('A companion can be asked for help at their matching optional site, earning trust',()=>{
+ const t=seeded('northmoor'),s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.frontier.recruited=['mara'];s.frontier.active=['mara'];
+ use(t,'site:enter:moorWatch');assert(t.worldScene().choices.some(c=>c.key==='w:site:ally:moorWatch'));
+ use(t,'site:ally:moorWatch');assert.equal(s.frontier.done['site:moorWatch'],true);assert.equal(s.frontier.trust.mara,1);
+});
+test('Commanding a companion too often can drive them out of the traveling party',()=>{
+ const t=seeded('northmoor'),s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.frontier.recruited=['mara'];s.frontier.active=['mara'];s.frontier.trust.mara=-1;
+ use(t,'talk:mara');use(t,'bond:mara:command');assert.equal(s.frontier.trust.mara,-2);assert.deepEqual(Array.from(s.frontier.active),[]);
+});
+test('Lantern power resolves an optional expedition with a persistent quest reward',()=>{
+ const t=seeded('glassfen'),s=t.get();s.unlocked=12;s.frontier=t.freshWorld();s.lanternSparks=2;
+ use(t,'site:enter:fenReliquary');use(t,'site:lamp:fenReliquary');
+ assert.equal(s.lanternSparks,1);assert.equal(s.inventory.lantern,1);assert.equal(s.frontier.emberglass,2);
+ assert.equal(s.frontier.done['site:fenReliquary'],true);
+});
+test('A purchased flashpowder flask affects enemy HP and is spent in combat',()=>{
+ const t=seeded('oldDepot'),s=t.get();s.unlocked=10;s.frontier=t.freshWorld();s.frontier.flashpowder=1;
+ t.startWorldBattle('depotThugs');const b=s.frontier.battle;b.phase='player';
+ t.worldBattleAction('wb:flashpowder');assert.equal(s.frontier.flashpowder,0);assert(b.enemyHp<b.enemyMax);assert.equal(b.phase,'result');assert.equal(b.guard,true);
+});
+test('Last Lantern flare works in regional combat and keeps the physical artifact',()=>{
+ const t=seeded('oldDepot'),s=t.get();s.unlocked=10;s.frontier=t.freshWorld();s.lanternSparks=3;
+ t.startWorldBattle('depotThugs');const b=s.frontier.battle;b.phase='player';
+ t.worldBattleAction('wb:lantern');assert.equal(s.lanternSparks,2);assert.equal(s.inventory.lantern,1);assert(b.enemyHp<b.enemyMax);assert.equal(b.phase,'result');
+});
+test('New gear and companion dialogue state survive a JSON save/import normalization',()=>{
+ const t=seeded('harbor'),s=t.get();s.unlocked=13;s.frontier=t.freshWorld();s.frontier.gear.weapon=1;s.frontier.gear.shield=1;s.frontier.emberglass=4;s.frontier.flashpowder=2;s.frontier.dialogue={id:'corvin',stage:'harbor',chapter:13};s.frontier.recruited=['corvin'];s.frontier.active=['corvin'];
+ const json=JSON.parse(JSON.stringify(s));assert.equal(validateSave(json).stage,'harbor');
+ const restored=t.upgradeSave(json);assert.equal(restored.frontier.gear.weapon,1);assert.equal(restored.frontier.emberglass,4);assert.equal(restored.frontier.dialogue.id,'corvin');
+});
+test('Party tab only exposes Talk when the current scene can actually accept it',()=>{
+ const t=seeded('waymarket'),s=t.get();s.unlocked=10;s.frontier=t.freshWorld();s.frontier.recruited=['mara'];s.frontier.active=['mara'];
+ assert(t.renderParty().includes('w:talk:mara'));
+ use(t,'shop:open');assert(!t.renderParty().includes('w:talk:mara'));
+ use(t,'shop:close');assert(t.renderParty().includes('w:talk:mara'));
+ use(t,'site:enter:oldDepot');assert(!t.renderParty().includes('w:talk:mara'));
+});
+
+// Shared four-way resolution choices, with separate resource and save effects.
+const REGIONAL_BEACONS=[['waygate','waygate'],['moorBeacon','moor'],['fenBeacon','fen'],['harborBeacon','harbor']];
+function beaconSeed(stage,{key=false,lantern=true,sparks=3,rations=2}={}){
+ const t=seeded(stage),s=t.get();s.frontier=t.freshWorld();s.unlocked=13;
+ s.flags.key=key;s.ending=lantern?'take':'restore';s.inventory.lantern=lantern?1:0;
+ s.lanternSparks=lantern?sparks:0;s.inventory.rations=rations;
+ return t;
+}
+test('All four waylights offer the same repair, delegation and personal-control choices',()=>{
+ for(const [stage,id] of REGIONAL_BEACONS){const t=beaconSeed(stage,{key:true});const keys=t.worldScene().choices.map(c=>c.key);
+  for(const method of ['spark','key','delegate','claimed'])assert(keys.includes('w:beacon:'+id+':'+method),stage+': '+method);
+ }
+});
+test('Without lantern or wolf-key, delegation and private control remain available',()=>{
+ for(const [stage,id] of REGIONAL_BEACONS){const t=beaconSeed(stage,{key:false,lantern:false});const keys=t.worldScene().choices.map(c=>c.key);
+  assert(keys.includes('w:beacon:'+id+':delegate'));assert(keys.includes('w:beacon:'+id+':claimed'));
+  assert(!keys.includes('w:beacon:'+id+':spark'));assert(!keys.includes('w:beacon:'+id+':key'));
+ }
+});
+test('An empty Last Lantern cannot rekindle a beacon, and keyless characters cannot use the key',()=>{
+ const t=beaconSeed('waygate',{key:false,lantern:true,sparks:0});const w=t.get().frontier;
+ const spark=t.worldScene().choices.find(c=>c.key==='w:beacon:waygate:spark');assert(spark.locked);
+ use(t,'beacon:waygate:spark');use(t,'beacon:waygate:key');assert.equal(w.beacons.waygate,'dark');
+});
+test('Each beacon can be rekindled once for one spark, preserving the lantern and recording the method',()=>{
+ for(const [stage,id] of REGIONAL_BEACONS){const t=beaconSeed(stage),s=t.get(),w=s.frontier;
+  use(t,'beacon:'+id+':spark');assert.equal(w.beacons[id],'restored');assert.equal(s.lanternSparks,2);
+  assert.equal(s.inventory.lantern,1);assert.equal(w.done['beaconMethod:'+id+':spark'],true);
+  const gold=w.gold;use(t,'beacon:'+id+':spark');assert.equal(w.gold,gold);assert.equal(s.lanternSparks,2);
+  assert(!t.worldScene().choices.some(c=>c.key==='w:beacon:'+id+':spark'));
+ }
+});
+test('Wolf-key repairs all four beacons without being consumed',()=>{
+ const t=beaconSeed('waygate',{key:true});const s=t.get();for(const [stage,id] of REGIONAL_BEACONS){s.stage=stage;s.storyResult=null;
+  const sparks=s.lanternSparks;use(t,'beacon:'+id+':key');assert.equal(s.frontier.beacons[id],'restored');
+  assert.equal(s.flags.key,true);assert.equal(s.lanternSparks,sparks);
+  assert.equal(s.frontier.done['beaconMethod:'+id+':key'],true);
+ }
+ assert.equal(s.frontier.mercy,4);
+});
+test('Entrusting a waylight takes a day, may contribute supplies, and records independent local governance',()=>{
+ for(const [stage,id] of REGIONAL_BEACONS){const t=beaconSeed(stage,{lantern:false,rations:2}),s=t.get(),w=s.frontier;
+  const before=w.day;use(t,'beacon:'+id+':delegate');assert.equal(w.beacons[id],'independent');
+  assert.equal(w.day,before+1);assert.equal(s.inventory.rations,1);assert.equal(w.mercy,1);
+  assert.equal(w.gold,18);assert.equal(w.done['beaconMethod:'+id+':delegate'],true);
+  assert(t.worldScene().text.some(x=>x.includes('full day of shared work')));
+  const day=w.day;use(t,'beacon:'+id+':delegate');assert.equal(w.day,day);
+ }
+});
+test('Entrusting remains possible with no lantern, key, rations or gold; never softlocks progression',()=>{
+ const t=beaconSeed('moorBeacon',{lantern:false,key:false,rations:0}),s=t.get();s.frontier.gold=0;
+ use(t,'beacon:moor:delegate');assert.equal(s.frontier.beacons.moor,'independent');assert.equal(s.frontier.gold,0);
+ assert.equal(s.inventory.rations,0);
+ assert(t.worldScene().choices.some(c=>c.key==='w:fen'));
+});
+test('Claimed waylights still grant private rewards and cannot be overwritten through repair',()=>{
+ for(const [stage,id] of REGIONAL_BEACONS){const t=beaconSeed(stage,{key:true}),s=t.get(),w=s.frontier;
+  use(t,'beacon:'+id+':claimed');assert.equal(w.beacons[id],'claimed');assert.equal(w.gold,34);
+  assert.equal(w.dominion,1);assert.equal(w.done['beaconMethod:'+id+':claimed'],true);
+  use(t,'beacon:'+id+':key');assert.equal(w.beacons[id],'claimed');
+ }
+});
+test('Beacon method flags and independent ownership survive save normalization',()=>{
+ const t=beaconSeed('fenBeacon',{key:true}),s=t.get();use(t,'beacon:fen:delegate');
+ const copy=JSON.parse(JSON.stringify(s));assert.equal(validateSave(copy).stage,'fenBeacon');
+ const loaded=t.upgradeSave(copy);assert.equal(loaded.frontier.beacons.fen,'independent');
+ assert.equal(loaded.frontier.done['beaconMethod:fen:delegate'],true);
+});
+test('Commons ending respects waylights previously placed in the hands of independent keepers',()=>{
+ const t=beaconSeed('waygate',{key:true}),s=t.get();use(t,'beacon:waygate:delegate');
+ s.stage='worldheart';s.unlocked=16;s.storyResult=null;s.frontier.beacons.moor='restored';
+ use(t,'finalRestore');assert.equal(s.frontier.ending,'restore');
+ assert.equal(s.frontier.beacons.waygate,'independent');assert.equal(s.frontier.beacons.moor,'restored');
+ assert.equal(s.frontier.mercy,4);
 });

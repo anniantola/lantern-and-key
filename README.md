@@ -1,3 +1,11 @@
+# Lantern & Key v3.2 — Roads Worth Traveling
+
+**New in v3.2:** The four regional beacons now offer repeatable repair logic—spend a lantern spark, reuse the silver wolf-key, entrust the work to local keepers, or claim private control. Each choice records distinct costs and stewardship.
+
+**Also in v3.2:** Five optional dungeon and wilderness sites with additional fights and alternate resolutions; dedicated weapon and equipment shops in three settlements; usable flashpowder and bandages; Last Lantern recharge shrines and combat flare; branching companion conversations with trust and one-use skill support; quest and ending acknowledgment for completed detours. Details and upgrade instructions: `RELEASE-v3.2.md`.
+
+---
+
 # Lantern & Key v3.1 — The Shattered Watchroad: Expanded Campaign
 
 A mobile-friendly, offline-capable **16-chapter, single-player, browser-based D&D learning adventure**. Chapters 1–8 form the introductory tutorial; Chapters 9–16 form the larger Watchroad campaign. No paid services or AI API keys are required. This is an educational adaptation of selected SRD 5.2.1 (2024) principles, **not** a complete tabletop D&D rules engine.
