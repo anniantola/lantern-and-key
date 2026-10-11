@@ -1,3 +1,21 @@
+# Lantern & Key v3.2.1 — Paid Work & Optional Adventure Reliability
+
+This corrective update audits Act II's optional quests and keeps the Watchroad story, existing characters, lantern powers, companion trust, weapon shops, and four waylight resolutions intact.
+
+**Paid jobs now require a challenge.** At Waycross, repair the damaged wagon with an Investigation check or fight its saboteurs. In North Moor, deliver Isolde's supplies with a Survival check or defeat the raiders, spending a ration. At Saltmere, accept a parcel, then secure its shipping route with a Survival check or confront the thieves; the 14 gp fee is only paid after an actual journey to Waycross or North Moor. Failed checks pay **zero** gold and leave a combat alternative available. Rewards can only be claimed once.
+
+**Optional sites:** All five expedition locations were reviewed. Failed skill checks no longer award the site's full gold and emberglass. A successful skill check or fight earns the reward. A companion's assistance or a lantern spark can make a *skill check* easier, but cannot automatically win money; an unsuccessful lantern attempt still consumes the spark. One-time approaches disappear after being attempted, but an unresolved encounter remains open to combat or withdrawal.
+
+**Companion money:** Corvin's 8 gp repayment and the lucrative 18 gp offers tied to exploiting a companion now require an actual Persuasion check. A failed deal never pays. Trust consequences still apply.
+
+**Save reliability:** The save validator now recognizes the five optional dungeon stages. Valid saves from inside those locations can be reloaded or imported rather than rejected as an unknown story stage. Existing Act II saves remain supported. Any old Saltmere parcel that was already accepted but not delivered must be secured using the new route options before receiving payment; this deliberately removes the previous free-money shortcut.
+
+**To update GitHub Pages:** Replace `game.js`, `logic.js`, `tests-world.cjs`, `sw.js`, and `README.md` in the repository root. You may also replace `RELEASE-v3.2.md` to keep the changelog updated. No new directories, artwork, or workflow changes are required. Export a JSON backup first.
+
+**Testing:** Run `node --test tests-core.cjs` (Node.js 22+) and `node --check game.js && node --check logic.js && node --check sw.js`. The workflow already runs these checks before deploying.
+
+---
+
 # Lantern & Key v3.2 — Roads Worth Traveling
 
 **New in v3.2:** The four regional beacons now offer repeatable repair logic—spend a lantern spark, reuse the silver wolf-key, entrust the work to local keepers, or claim private control. Each choice records distinct costs and stewardship.

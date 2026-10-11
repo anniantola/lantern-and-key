@@ -11,18 +11,19 @@ const instrumented=source.replace('s=load();\nrender();\n})();',`globalThis.__wo
  renderWorldMap,renderParty,renderWorldBattle,worldBattleAction,worldBeat,startWorldBattle,worldCompanionBonus,worldMapTravel,worldQuestLedger,renderSheet,worldRestChoices,skillBonus,upgradeSave,initialSave
 };\ns=load();\nrender();\n})();`);
 assert.notEqual(instrumented,source,'test hook is present');
-function env(){
- let db={};const app={innerHTML:'',addEventListener(){}};
+function env(forcedRandom=null){
+ let db={};
+ const testMath=Object.create(Math);if(forcedRandom!==null)testMath.random=()=>forcedRandom;const app={innerHTML:'',addEventListener(){}};
  const sandbox={
  window:{LanternCore:require('./logic.js'),addEventListener(){},matchMedia:()=>({matches:false}),scrollTo(){}},
  document:{querySelector:()=>app,addEventListener(){}},
  navigator:{userAgent:'Test'},localStorage:{getItem:k=>db[k]??null,setItem:(k,v)=>db[k]=String(v),removeItem:k=>delete db[k]},
- console:{warn(){},error(){},log(){}},requestAnimationFrame:()=>{},setTimeout:()=>0,Math,Date,JSON,alert:()=>{},confirm:()=>true
+ console:{warn(){},error(){},log(){}},requestAnimationFrame:()=>{},setTimeout:()=>0,Math:testMath,Date,JSON,alert:()=>{},confirm:()=>true
  };
  vm.runInNewContext(instrumented,sandbox,{filename:'game.js',timeout:3000});return {...sandbox.__worldTest,html:()=>app.innerHTML,save:()=>JSON.parse(db['lantern-and-key.save.v1']||'null')};
 }
-function seeded(stage='epilogue'){
- const t=env(); const save=t.initialSave();
+function seeded(stage='epilogue',forcedRandom=null){
+ const t=env(forcedRandom); const save=t.initialSave();
  Object.assign(save,{stage,classId:'fighter',heroName:'Rhea',level:2,hp:20,hitDice:2,unlocked:8,ending:'take',lanternSparks:3,inventory:{rope:1,rations:2,torch:1,smoke:1,lantern:1},flags:{beaconPassed:true,lanternResolve:'guard'}});
  t.seed(save);return t;
 }
@@ -41,7 +42,7 @@ test('Gold has safe bounds, and shopping cannot create negative balances',()=>{
 });
 test('A one-time caravan job cannot print unlimited gold',()=>{
  const t=seeded();for(const key of ['begin','camp','market'])use(t,key);
- use(t,'cartJob');const n=t.get().frontier.gold;use(t,'cartJob');assert.equal(t.get().frontier.gold,n);assert.equal(n,28);
+ use(t,'job:cart:check');const n=t.get().frontier.gold;use(t,'job:cart:check');assert.equal(t.get().frontier.gold,n);assert(n===18||n===28);
 });
 test('Three recruits are persistent, but only two travel actively',()=>{
  const t=seeded();for(const key of ['begin','camp','recruit:mara','recruit:tamsin','recruit:corvin'])use(t,key);
@@ -191,6 +192,10 @@ test('Roadside foraging provides a non-paid recovery path but is limited to once
 test('Port delivery pays only after a real journey to a named waypoint',()=>{
  const t=seeded('harbor');const s=t.get();s.unlocked=13;s.frontier=t.freshWorld();
  use(t,'portDelivery');assert.equal(s.frontier.gold,18);assert.equal(s.frontier.cargo,true);
+ use(t,'job:port:fight');let b=s.frontier.battle;assert(b?.active);
+ b.phase='result';b.enemyHp=0;b.result={title:'Defeated',story:'Win',math:''};b.next='victory';t.worldBattleAction('wb:continue');
+ assert.equal(s.frontier.cargoReady,true);
+ s.storyResult=null;s.outcome=null;
  t.worldMapTravel('wtravel:northmoor');assert.equal(s.frontier.cargo,false);
  assert.equal(s.frontier.gold,32);assert.equal(s.frontier.done.portDelivery,true);
 });
@@ -355,7 +360,7 @@ test('A level-3 Rogue sheet lists updated Sneak Attack and Cunning Action',()=>{
 const NEW_SITES=[['oldDepot','waymarket',10,'depotThugs'],['moorWatch','northmoor',11,'watchRavagers'],['fenReliquary','glassfen',12,'reedWights'],['saltCistern','harbor',13,'cisternBlades'],['bellCatacomb','citadel',15,'bellSentinel']];
 for(const [id,hub,chapter,enemy] of NEW_SITES){
  test(`Optional adventure ${id} can be visited and resolved without combat, rewarding loot once`,()=>{
-  const t=seeded(hub),s=t.get();s.unlocked=chapter;s.frontier=t.freshWorld();
+  const t=seeded(hub,0.99),s=t.get();s.unlocked=chapter;s.frontier=t.freshWorld();
   assert(t.worldScene().choices.some(x=>x.key==='w:site:enter:'+id));
   use(t,'site:enter:'+id);assert.equal(s.stage,id);
   const gold=s.frontier.gold,glass=s.frontier.emberglass;
@@ -415,7 +420,7 @@ test('Companion joint planning creates one-time skill help that is consumed when
  use(t,'moorClue');assert.equal(s.frontier.skillAid,null);
 });
 test('A companion can be asked for help at their matching optional site, earning trust',()=>{
- const t=seeded('northmoor'),s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.frontier.recruited=['mara'];s.frontier.active=['mara'];
+ const t=seeded('northmoor',0.99),s=t.get();s.unlocked=11;s.frontier=t.freshWorld();s.frontier.recruited=['mara'];s.frontier.active=['mara'];
  use(t,'site:enter:moorWatch');assert(t.worldScene().choices.some(c=>c.key==='w:site:ally:moorWatch'));
  use(t,'site:ally:moorWatch');assert.equal(s.frontier.done['site:moorWatch'],true);assert.equal(s.frontier.trust.mara,1);
 });
@@ -424,7 +429,7 @@ test('Commanding a companion too often can drive them out of the traveling party
  use(t,'talk:mara');use(t,'bond:mara:command');assert.equal(s.frontier.trust.mara,-2);assert.deepEqual(Array.from(s.frontier.active),[]);
 });
 test('Lantern power resolves an optional expedition with a persistent quest reward',()=>{
- const t=seeded('glassfen'),s=t.get();s.unlocked=12;s.frontier=t.freshWorld();s.lanternSparks=2;
+ const t=seeded('glassfen',0.99),s=t.get();s.unlocked=12;s.frontier=t.freshWorld();s.lanternSparks=2;
  use(t,'site:enter:fenReliquary');use(t,'site:lamp:fenReliquary');
  assert.equal(s.lanternSparks,1);assert.equal(s.inventory.lantern,1);assert.equal(s.frontier.emberglass,2);
  assert.equal(s.frontier.done['site:fenReliquary'],true);
@@ -527,3 +532,124 @@ test('Commons ending respects waylights previously placed in the hands of indepe
  assert.equal(s.frontier.beacons.waygate,'independent');assert.equal(s.frontier.beacons.moor,'restored');
  assert.equal(s.frontier.mercy,4);
 });
+
+// v3.2.1: paid work must be earned, and optional routes must not strand the player.
+function visitPaidJob(stage,roll){const t=seeded(stage,roll),s=t.get();s.unlocked=16;s.frontier=t.freshWorld();return {t,s};}
+for(const [roll,succeeds] of [[0.99,true],[0,false]]){
+ test(`Caravan repair ${succeeds?'succeeds':'fails'} without granting unearned or repeatable gold`,()=>{
+  const {t,s}=visitPaidJob('waymarket',roll);
+  assert(t.worldScene().choices.some(c=>c.key==='w:job:cart:check'));
+  const starting=s.frontier.gold;
+  use(t,'job:cart:check');assert.equal(s.frontier.gold,starting+(succeeds?10:0));
+  assert.equal(Boolean(s.frontier.done.cartJob),succeeds);
+  assert(!t.worldScene().choices.some(c=>c.key==='w:job:cart:check'));
+  use(t,'job:cart:check');assert.equal(s.frontier.gold,starting+(succeeds?10:0));
+  if(!succeeds)assert(t.worldScene().choices.some(c=>c.key==='w:job:cart:fight'));
+ });
+ test(`Moor supply skill check ${succeeds?'earns':'does not earn'} the 9 gp with an explicit ration cost`,()=>{
+  const {t,s}=visitPaidJob('northmoor',roll);
+  assert(t.worldScene().choices.some(c=>c.key==='w:job:moor:check'));
+  const beforeRations=s.inventory.rations;
+  use(t,'job:moor:check');assert.equal(s.inventory.rations,beforeRations-1);
+  assert.equal(s.frontier.gold,18+(succeeds?9:0));
+  assert.equal(Boolean(s.frontier.done.moorAid),succeeds);
+  if(!succeeds)assert(t.worldScene().choices.some(c=>c.key==='w:job:moor:fight'));
+ });
+ test(`Cargo route ${succeeds?'clears':'fails'} its security check without an immediate payout`,()=>{
+  const {t,s}=visitPaidJob('harbor',roll);
+  use(t,'portDelivery');assert.equal(s.frontier.gold,18);
+  assert(t.worldScene().choices.some(c=>c.key==='w:job:port:check'));
+  use(t,'job:port:check');assert.equal(s.frontier.gold,18);
+  assert.equal(s.frontier.cargoReady,succeeds);
+  if(!succeeds){
+   assert(t.worldScene().choices.some(c=>c.key==='w:job:port:fight'));
+   s.storyResult=null;s.outcome=null;
+   t.worldMapTravel('wtravel:northmoor');
+   assert.equal(s.frontier.gold,18);
+   assert.equal(s.frontier.cargo,true);
+  } else {
+   s.storyResult=null;s.outcome=null;
+   t.worldMapTravel('wtravel:northmoor');
+   assert.equal(s.frontier.gold,32);
+   assert.equal(s.frontier.cargo,false);
+  }
+ });
+}
+for(const [id,hub,chapter,enemy] of NEW_SITES){
+ test(`${id}: a failed skill check cannot claim wages; combat remains reachable`,()=>{
+  const {t,s}=visitPaidJob(hub,0);s.unlocked=chapter;
+  use(t,'site:enter:'+id);const starting=s.frontier.gold;
+  use(t,'site:study:'+id);
+  assert.equal(s.frontier.gold,starting);assert.equal(s.frontier.emberglass,0);
+  assert.equal(Boolean(s.frontier.done['site:'+id]),false);
+  assert(!t.worldScene().choices.some(c=>c.key==='w:site:study:'+id));
+  assert(t.worldScene().choices.some(c=>c.key==='w:site:fight:'+id));
+  use(t,'site:fight:'+id);assert.equal(s.frontier.battle?.encounter,enemy);
+  const b=s.frontier.battle;b.phase='result';b.enemyHp=0;b.result={title:'Victory',story:'Recovered',math:''};b.next='victory';
+  t.worldBattleAction('wb:continue');
+  assert.equal(s.frontier.done['site:'+id],true);
+  assert(s.frontier.gold>starting);
+  assert(validateSave(JSON.parse(JSON.stringify(s))).frontier);
+ });
+}
+test('A failed lantern-assisted site attempt consumes a spark but cannot generate money',()=>{
+ const {t,s}=visitPaidJob('fenReliquary',0);s.unlocked=12;s.lanternSparks=2;
+ use(t,'site:lamp:fenReliquary');
+ assert.equal(s.lanternSparks,1);assert.equal(s.frontier.gold,18);
+ assert.equal(Boolean(s.frontier.done['site:fenReliquary']),false);
+ assert(t.worldScene().choices.some(c=>c.key==='w:site:fight:fenReliquary'));
+ assert(!t.worldScene().choices.some(c=>c.key==='w:site:lamp:fenReliquary'));
+});
+test('Companion assistance requires a dice check; a failure cannot yield expedition loot',()=>{
+ const {t,s}=visitPaidJob('moorWatch',0);s.unlocked=11;
+ s.frontier.recruited=['mara'];s.frontier.active=['mara'];
+ use(t,'site:ally:moorWatch');
+ assert.equal(s.frontier.gold,18);assert.equal(s.frontier.emberglass,0);
+ assert.equal(Boolean(s.frontier.done['site:moorWatch']),false);
+ assert(t.worldScene().choices.some(c=>c.key==='w:site:fight:moorWatch'));
+});
+test('Every new paid combat job rewards once on victory, never merely when selected',()=>{
+ for(const [stage,action,enemy,done,reward] of [
+  ['waymarket','job:cart:fight','cartSaboteurs','cartJob',10],
+  ['northmoor','job:moor:fight','moorSupplyRaiders','moorAid',9],
+  ['harbor','job:port:fight','portCargoRaiders',null,0]
+ ]){
+  const {t,s}=visitPaidJob(stage,0.99);
+  if(stage==='harbor')use(t,'portDelivery');
+  use(t,action);
+  const b=s.frontier.battle;assert.equal(b?.encounter,enemy);assert.equal(s.frontier.gold,18);
+  b.phase='result';b.enemyHp=0;b.result={title:'Victory',story:'Won',math:''};b.next='victory';
+  t.worldBattleAction('wb:continue');
+  assert.equal(s.frontier.gold,18+reward);
+  if(done)assert.equal(s.frontier.done[done],true);
+  if(stage==='harbor')assert.equal(s.frontier.cargoReady,true);
+  s.storyResult=null;s.outcome=null;
+  use(t,action);assert.equal(s.frontier.gold,18+reward);
+ }
+});
+test('An old accepted delivery save cannot print 14 gp without completing the new safety challenge',()=>{
+ const {t,s}=visitPaidJob('harbor',0.99);
+ s.frontier.cargo=true;s.frontier.done.portDeliveryAccepted=true;
+ s.frontier=t.normalizeWorld(JSON.parse(JSON.stringify(s.frontier)));
+ assert.equal(s.frontier.cargoReady,false);
+ t.worldMapTravel('wtravel:waymarket');assert.equal(s.frontier.gold,18);
+ assert.equal(s.frontier.cargo,true);
+});
+for(const [roll,paid] of [[0.99,true],[0,false]]){
+ test(`Corvin compensation ${paid?'can':'cannot'} be paid after the ${paid?'successful':'failed'} Persuasion check`,()=>{
+  const {t,s}=visitPaidJob('harbor',roll);s.frontier.recruited=['corvin'];s.frontier.active=['corvin'];
+  use(t,'personal:corvin');assert.equal(s.stage,'corvinLedger');
+  use(t,'personalResolve:corvin:support');
+  assert.equal(s.frontier.done['personal:corvin'],true);
+  assert.equal(s.frontier.gold,18+(paid?8:0));
+  assert.equal(s.frontier.trust.corvin,3);
+ });
+ test(`Companion exploitation ${paid?'makes':'fails to make'} money according to a real check`,()=>{
+  const {t,s}=visitPaidJob('northmoor',roll);s.frontier.recruited=['mara'];s.frontier.active=['mara'];
+  use(t,'personal:mara');assert.equal(s.stage,'maraMemory');
+  use(t,'personalResolve:mara:exploit');
+  assert.equal(s.frontier.done['personal:mara'],true);
+  assert.equal(s.frontier.gold,18+(paid?18:0));
+  assert.equal(s.frontier.trust.mara,-2);
+ });
+}

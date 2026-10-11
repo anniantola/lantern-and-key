@@ -1,3 +1,9 @@
+## v3.2.1 — Paid Work & Optional Quest fixes
+
+Caravan, moor, and cargo help now require a skill check or a won encounter before payout; cargo also requires physical delivery. Expedition rewards are withheld on failed skill checks, including companion and lantern-assisted approaches. Companion monetary dealings now require checks. Optional-site stages are included in save validation. One-time rewards cannot be farmed by retries.
+
+---
+
 # Lantern & Key v3.2 — Roads Worth Traveling
 
 This release deepens Act II with activities that connect narrative choices to exploration, combat, equipment, lantern magic, and companion relationships.

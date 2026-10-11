@@ -690,7 +690,7 @@ function renderAdventureNav(){
 }
 function render(){
  const playing=Boolean(s.classId&&s.stage!=='welcome');
- app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy campaign · v3.2</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
+ app.innerHTML=`<header class="app-header"><div class="header-inside"><button class="brand" data-act="home" aria-label="Return to the adventure"><span class="brand-logo">✧</span><span>LANTERN <em>&</em> KEY</span></button><div class="header-actions">${playing?`<span class="header-hp" aria-label="Your current health is ${s.hp} of ${maxHp()} hit points">♥ <b>${s.hp}</b> / ${maxHp()} HP</span>`:`<button class="header-rules" data-modal="rules">? Rules</button>`}<button class="settings-button" data-modal="settings" aria-label="Open settings"><span aria-hidden="true">⚙</span><span>Settings</span></button></div></div></header>${playing?renderAdventureNav():''}<div class="shell ${playing?'playing':''}">${playing?`<div class="game-layout"><main class="game-main">${renderScene()}</main>${renderSidebar()}</div>`:renderWelcome()}</div><footer class="site-footer ${playing?'playing-footer':''}"><span>✧ LANTERN & KEY</span><span>An independent tabletop-fantasy campaign · v3.2.1</span><button data-modal="rules">Rules & attribution ↗</button></footer>${renderModal()}${loadIssue?recoveryView():''}${updateWorker?`<div class="update-banner"><span>A new version is ready. Your progress is saved.</span><button data-act="applyUpdate">Update when ready →</button><button data-act="dismissUpdate" aria-label="Dismiss update">×</button></div>`:''}`;
 }
 function restart(){if(s.replay){if(!confirm('Discard this replay and return to your original campaign?'))return;return returnToMain();}if(!confirm('Start a new adventure? Your current progress will be replaced. Export a backup first if you want to keep it.'))return;s=initialSave();modal=null;commit();}
 function returnToMain(){try{const main=localStorage.getItem(SAVE_KEY);if(!main)throw Error('No main campaign save found.');const original=upgradeSave(validateSave(JSON.parse(main)));localStorage.removeItem(REPLAY_KEY);s=original;modal=null;commit();}catch(e){alert('Unable to restore the main campaign: '+e.message);}}
@@ -1509,7 +1509,7 @@ const COMPANIONS={
  tamsin:{name:'Tamsin',role:'Healer · herbalist',tag:'Medicine, supplies and care',skill:'survival',bio:'An apothecary who treats travelers regardless of faction. She has little patience for needless cruelty.',ideal:'repair'},
  corvin:{name:'Corvin',role:'Ex-keeper · negotiator',tag:'Deals, history and influence',skill:'persuasion',bio:'A former waylight accountant who knows what the network can buy for the ambitious. His loyalty must be earned.',ideal:'claim'}
 };
-function freshWorld(){return {gold:18,day:1,hour:8,active:[],recruited:[],trust:{mara:0,tamsin:0,corvin:0},reputation:{keepers:0,syndicate:0},beacons:{waygate:'dark',moor:'dark',fen:'dark',harbor:'dark'},done:{},clues:0,mercy:0,dominion:0,relief:0,ending:null,gear:{armor:0,focus:0,boots:0,weapon:0,shield:0},slots2:0,travelSpent:0,location:'roadCamp',cargo:false,encountersWon:0,emberglass:0,flashpowder:0,bandages:0,skillAid:null,dialogue:null,shopOpen:false};}
+function freshWorld(){return {gold:18,day:1,hour:8,active:[],recruited:[],trust:{mara:0,tamsin:0,corvin:0},reputation:{keepers:0,syndicate:0},beacons:{waygate:'dark',moor:'dark',fen:'dark',harbor:'dark'},done:{},clues:0,mercy:0,dominion:0,relief:0,ending:null,gear:{armor:0,focus:0,boots:0,weapon:0,shield:0},slots2:0,travelSpent:0,location:'roadCamp',cargo:false,cargoReady:false,encountersWon:0,emberglass:0,flashpowder:0,bandages:0,skillAid:null,dialogue:null,shopOpen:false};}
 function normalizeWorld(data){const fresh=freshWorld();if(!data||typeof data!=='object'||Array.isArray(data))return fresh;
  const clean={...fresh,...data};
  clean.gold=clamp(Number.isFinite(data.gold)?Math.trunc(data.gold):18,0,9999);
@@ -1519,6 +1519,7 @@ function normalizeWorld(data){const fresh=freshWorld();if(!data||typeof data!=='
  clean.travelSpent=clamp(Number.isFinite(data.travelSpent)?Math.trunc(data.travelSpent):0,0,500);
  clean.location=typeof data.location==='string'&&/^[a-zA-Z]{3,25}$/.test(data.location)?data.location:'roadCamp';
  clean.cargo=data.cargo===true;
+ clean.cargoReady=data.cargoReady===true;
  clean.encountersWon=clamp(Number.isFinite(data.encountersWon)?Math.trunc(data.encountersWon):0,0,20);
  clean.gear={armor:clamp(Number(data.gear?.armor)||0,0,1),focus:clamp(Number(data.gear?.focus)||0,0,1),boots:clamp(Number(data.gear?.boots)||0,0,1),weapon:clamp(Number(data.gear?.weapon)||0,0,1),shield:clamp(Number(data.gear?.shield)||0,0,1)};
  for(const k of ['emberglass','flashpowder','bandages'])clean[k]=clamp(Number.isFinite(data[k])?Math.trunc(data[k]):0,0,30);
@@ -1564,7 +1565,10 @@ function worldTravelCost(origin,destination){
  if(s.inventory.rations>0)s.inventory.rations--;
  else {const before=s.hp;s.hp=Math.max(1,s.hp-(w.gear?.boots?1:2));expense=`Without a ration, fatigue costs ${before-s.hp} HP (minimum 1 HP).`;}
  w.location=destination;
- if(w.cargo&&(destination==='northmoor'||destination==='waymarket')){w.cargo=false;w.done.portDelivery=true;worldGain(14);worldLoyalty(1,0,{tamsin:1});record('The Saltmere cargo reaches its recipients. You earn the agreed 14 gp after making the journey.');expense+=' A sealed delivery reaches its recipients, earning 14 gp.';}
+ if(w.cargo&&(destination==='northmoor'||destination==='waymarket')){
+  if(w.cargoReady){w.cargo=false;w.cargoReady=false;w.done.portDelivery=true;worldGain(14);worldLoyalty(1,0,{tamsin:1});record('The Saltmere cargo arrives safely after you secured the route. You earn the agreed 14 gp.');expense+=' Your guarded cargo arrives safely, earning the contracted 14 gp.';}
+  else expense+=' The courier accepts your arrival but not the unsecured crate: its seal and manifest remain disputed. No fee is paid. Return to Saltmere to settle the delivery with a skill check or a fight.';
+ }
  return expense;
 }
 function worldAdvanceLevel(ch){
@@ -1654,7 +1658,7 @@ function worldSceneLegacy(){const w=world(),status=(id)=>w.beacons[id]==='dark'?
  'Waycross grew around four intersections of the old blue road. Its square is filled with wagons waiting for signals that no longer come; a tin bell hangs above the market, ringing whenever someone pays another toll.',
  `You have ${w.gold} gp. A merchant sells remedies and rations; a guild broker offers payment for private passage through the first gate. Families sheltering beneath the aqueduct ask for help reopening it.`,
  'The town seems to have two prices for everything: what the traveler pays, and what the person who controls the road earns.',worldDescribeParty()
- ],lesson:'Gold, equipment and paid labor affect your options. Every purchase is tracked, and rewards cannot be collected twice.',choices:[!wDone('cartJob')?wChoice('cartJob','Help unload a damaged caravan','Earn 10 gp through honest work','♜'):null,wChoice('potion','Buy a Potion of Healing','Cost 8 gp · 2d4+2 HP','⚗',!worldCanSpend(8)),wChoice('rations','Buy two travel rations','Cost 4 gp · useful on the road','♢',!worldCanSpend(4)),wChoice('gate','Investigate the western waygate','Decide how the first public signal should work','↝')]};
+ ],lesson:'Paid work is not automatic: investigate a hazard or defeat its opposition. Rewards require completed jobs, and unsuccessful checks do not pay.',choices:[!wDone('cartJob')&&!wDone('job:cart:tried')?wChoice('job:cart:check','Repair the sabotaged caravan axle','Investigation DC 13 · 10 gp only on success','🎲'):null,!wDone('cartJob')?wChoice('job:cart:fight','Defend the caravan from the saboteurs','Combat alternative · 10 gp on victory','⚔'):null,wChoice('potion','Buy a Potion of Healing','Cost 8 gp · 2d4+2 HP','⚗',!worldCanSpend(8)),wChoice('rations','Buy two travel rations','Cost 4 gp · useful on the road','♢',!worldCanSpend(4)),wChoice('gate','Investigate the western waygate','Decide how the first public signal should work','↝')]};
  case 'waygate':return {chapter:10,label:'THE WESTERN WAYGATE',heading:'A toll written in blue fire',text:[
  'On the old stone archway, a half-lit beacon throws a narrow blue path across the road. A guild clerk has fastened a brass lock to its control wheel. Only caravans bearing stamped passes may continue after dark.',
  w.reputation.syndicate>0?'The clerk knows you have spoken to the guild. An offer waits on the table, but it comes with conditions.':'The local keepers ask you to make the path safe for everyone, not simply for the wealthiest wagons.',
@@ -1664,7 +1668,7 @@ function worldSceneLegacy(){const w=world(),status=(id)=>w.beacons[id]==='dark'?
  'Beyond Waycross, dry stone walls disappear beneath pale grass. Survey stakes pierce the hills where towers once stood. In the dusk, faint blue lines appear on the earth only when the clouds cover the stars.',
  'A widow named Isolde tends a roofless waystation. She says travelers have vanished because their lamps were diverted to a private estate. The northern light must be reached before the next storm.',
  wDone('moorClue')&&wDone('moorClueSuccess')?'You have identified the marks leading to the keeper’s old maintenance stair.':'The hillside gives no obvious indication of where the light can be repaired.',worldDescribeParty()
- ],lesson:'Exploration and your companions’ skills can reveal safer ways to complete a quest.',choices:[!wDone('moorClue')?wChoice('moorClue','Read the old trail markers','Perception DC 13 · Mara can help','◎'):null,!wDone('moorAid')?wChoice('moorAid','Carry food to Isolde’s waystation','Spend 1 ration · receive 9 gp for repair work','♢',s.inventory.rations<1):null,wChoice('moorTop','Climb to the moor beacon','Face the choice at the signal tower','↝')]};
+ ],lesson:'Exploration and your companions’ skills can reveal safer ways to complete a quest.',choices:[!wDone('moorClue')?wChoice('moorClue','Read the old trail markers','Perception DC 13 · Mara can help','◎'):null,!wDone('moorAid')&&!wDone('job:moor:tried')?wChoice('job:moor:check','Deliver supplies across the damaged moor road','1 ration · Survival DC 13 · 9 gp on success','🎲',s.inventory.rations<1&&!wDone('job:moor:supplied')):null,!wDone('moorAid')?wChoice('job:moor:fight','Drive raiders away from Isolde’s supply route','Combat alternative · 1 ration · 9 gp on victory','⚔',s.inventory.rations<1&&!wDone('job:moor:supplied')):null,wChoice('moorTop','Climb to the moor beacon','Face the choice at the signal tower','↝')]};
  case 'moorBeacon':return {chapter:11,label:'THE NORTHERN LIGHT',heading:'The beacon beneath the storm',text:[
  'The tower hums in the rain. Its core still carries enough energy to mark a safe crossing, but the old control wheel can send the light over the commons or narrow it toward a private road.',
  wDone('moorClueSuccess')?'The signs you traced show exactly where the public conductor should be reconnected.':'Without the old markers, you must work from the exposed conduits and trust your judgment.',
@@ -1684,7 +1688,7 @@ function worldSceneLegacy(){const w=world(),status=(id)=>w.beacons[id]==='dark'?
  'The harbor’s cranes silhouette a pale-blue dusk. Each dock has its own warning bell, but the central lighthouse is dark. Without it, captains rely on costly pilots employed by a single trading house.',
  'Guild scribes debate prices beneath a painted map of the coastline. A harbor worker brings you a sealed request for supplies from the villages upriver. The request is stamped with the same three-eyed wolf.',
  `Your purse holds ${w.gold} gp. Your deeds are becoming known: some call you a restorer, others an investor.`,worldDescribeParty()
- ],lesson:'Rewards, reputation and party ethics give social decisions lasting consequences.',choices:[!wDone('portDeliveryAccepted')?wChoice('portDelivery','Accept an upriver delivery','Earn 14 gp after bringing supplies to Waycross or North Moor','♢'):null,!wDone('portBroker')?wChoice('portBroker','Listen to a guild broker’s offer','Gain information about the lighthouse · Insight DC 12','◎'):null,wChoice('portTop','Enter the lighthouse','Find the third regional beacon','↝')]};
+ ],lesson:'Rewards, reputation and party ethics give social decisions lasting consequences.',choices:[!wDone('portDeliveryAccepted')?wChoice('portDelivery','Accept an upriver delivery','Secure the crate by skill check or fighting smugglers, then deliver it for 14 gp','♢'):null,w.cargo&&!w.cargoReady&&!wDone('job:port:tried')?wChoice('job:port:check','Secure the manifest and select a safe courier route','Survival DC 14 · enables delivery payment','🎲'):null,w.cargo&&!w.cargoReady?wChoice('job:port:fight','Defend the shipment against charter thieves','Combat alternative · enables delivery payment','⚔'):null,!wDone('portBroker')?wChoice('portBroker','Listen to a guild broker’s offer','Gain information about the lighthouse · Insight DC 12','◎'):null,wChoice('portTop','Enter the lighthouse','Find the third regional beacon','↝')]};
  case 'harborBeacon':return {chapter:13,label:'THE HARBOR LIGHT',heading:'Where the ships choose their shore',text:[
  'On the lighthouse steps, an old keeper points to shipwreck names carved into the wall. The harbor guild offers legal control of the beam in exchange for a substantial payment.',
  wDone('portBrokerSuccess')?'You caught contradictions in the broker’s explanation; their priorities are now easier to recognize.':'The guild proposal offers wealth without explaining who will be turned away.',
@@ -1789,12 +1793,12 @@ function sideScene(){const id=s.stage,info=SIDE_SITES[id],w=world(),cleared=wDon
  const friends=w.active.filter(x=>wTrusted(x)).map(x=>COMPANIONS[x].name);
  return {chapter:info.chapter,label:'OPTIONAL ADVENTURE · '+WORLD_CHAPTERS.find(x=>x[0]===info.chapter)[1].toUpperCase(),heading:info.title,
  text:[...info.intro,friends.length?`At your side, ${friends.join(' and ')} ${friends.length===1?'considers':'consider'} a different way to solve the danger. Their help is earned, not assumed.`:'You have come alone, so any risk is yours to manage.',cleared?`The site is now safe. ${info.loot}`:'The situation is still unresolved; you can withdraw and return with better equipment if necessary.'],
- lesson:'Optional quests award resources and experience in problem solving. Combat is one possible response, not the only way forward.',
+ lesson:'Optional quests reward success. Skill checks can fail, and companion or lantern assistance changes the odds rather than granting free loot. Fighting remains an alternative.',
  choices:cleared?[wChoice('site:back:'+id,'Return to the main road','Carry your discoveries back to the region','↶'),...(carriesLantern()&&lanternSparks()<3?[wChoice('shrine:attune:'+id,'Attune to the recovered emberglass','One-time free recharge · restore 1 spark','✧',wDone('attune:'+id))]:[])]:[
- wChoice('site:study:'+id,'Investigate and resolve the danger',`${info.skill} DC ${info.dc} · uncertainty and consequences`,'🎲'),
+ ...(!wDone('site:try:'+id+':study')?[wChoice('site:study:'+id,'Investigate and resolve the danger',`${info.skill} DC ${info.dc} · earn loot on success`,'🎲')]:[]),
  wChoice('site:fight:'+id,'Fight through the opposition','A real combat encounter with separate action results','⚔'),
- ...(wTrusted(info.companion)?[wChoice('site:ally:'+id,`Let ${COMPANIONS[info.companion].name} take the lead`,'Reward their expertise and cooperation','♡')]:[]),
- ...(carriesLantern()?[wChoice('site:lamp:'+id,'Use the Last Lantern to reveal a safer solution','Spend 1 spark · resolve the obstacle without combat','✧',lanternSparks()<1)]:[]),
+ ...(wTrusted(info.companion)&&!wDone('site:try:'+id+':ally')?[wChoice('site:ally:'+id,`Let ${COMPANIONS[info.companion].name} assist`,`Assisted ${info.skill} check · rewards require success`,'♡')]:[]),
+ ...(carriesLantern()&&!wDone('site:try:'+id+':lamp')?[wChoice('site:lamp:'+id,'Use the Last Lantern to expose a hidden route',`Spend 1 spark · easier ${info.skill} check, not automatic success`,'✧',lanternSparks()<1)]:[]),
  wChoice('site:back:'+id,'Withdraw for now','Return to the main road; the site remains unexplored','↶')
  ]};
 }
@@ -1819,9 +1823,21 @@ function sideAction(item){const w=world();if(item.startsWith('site:enter:')){con
  if(item.startsWith('site:back:')){const id=item.slice(10),info=SIDE_SITES[id];if(!info||s.stage!==id)return true;
  w.dialogue=null;worldStep(info.hub,'Back to the watchroad',wDone('site:'+id)?'You return with evidence, equipment and a story that will outlast the journey.':'You step back from the hazard before committing to a final approach. You can return when you are better prepared.');return true;}
  if(item.startsWith('site:study:')||item.startsWith('site:ally:')||item.startsWith('site:lamp:')){const [site,method,id]=item.split(':');const info=SIDE_SITES[id];if(!info||s.stage!==id||wDone('site:'+id))return true;
- if(method==='study'){worldCheck(info.skill,info.dc,info.title,info.success,info.fail,passed=>{earnSite(id,'study');if(!passed)s.hp=Math.max(1,s.hp-2);});return true;}
- if(method==='lamp'){if(!carriesLantern()||lanternSparks()<1)return true;s.lanternSparks--;earnSite(id,'lamp');worldBeat('Blue fire remembers',`The lantern spends one spark revealing a route through the danger that was concealed from ordinary sight. ${info.success} ${info.loot}`,true);return true;}
- if(method==='ally'){if(!wTrusted(info.companion))return true;earnSite(id,'ally');worldBeat(`${COMPANIONS[info.companion].name} takes the lead`,`${COMPANIONS[info.companion].name} uses knowledge earned through their past to open a safer path. ${info.success} ${info.loot}`,true);return true;}}
+ if(wDone('site:try:'+id+':'+method))return true;
+ if(method==='study'){
+  w.done['site:try:'+id+':study']=true;
+  worldCheck(info.skill,info.dc,info.title,info.success,'Your first attempt fails to remove the danger. You withdraw with bruises, no payment or emberglass, and the option to confront the opposition remains.',passed=>{if(passed)earnSite(id,'study');else s.hp=Math.max(1,s.hp-2);});return true;
+ }
+ if(method==='lamp'){
+  if(!carriesLantern()||lanternSparks()<1)return true;
+  w.done['site:try:'+id+':lamp']=true;s.lanternSparks--;
+  worldCheck(info.skill,Math.max(9,info.dc-4),'Lantern-guided approach: '+info.title,info.success+' Your success earns the contracted payment and recovered emberglass.','The lantern reveals a brief route, but the hazard closes before you can finish. The spark is spent; there is no payment. You can still fight through the danger.',passed=>{if(passed)earnSite(id,'lamp');else s.hp=Math.max(1,s.hp-1);});return true;
+ }
+ if(method==='ally'){
+  if(!wTrusted(info.companion))return true;
+  w.done['site:try:'+id+':ally']=true;
+  worldCheck(info.skill,Math.max(10,info.dc-2),COMPANIONS[info.companion].name+' assists at '+info.title,info.success+' Your companion helps secure the reward.','Your combined attempt cannot overcome the danger. You receive no wages; the opponents still guard the site.',passed=>{if(passed)earnSite(id,'ally');else s.hp=Math.max(1,s.hp-1);});return true;
+ }}
  if(item.startsWith('site:fight:')){const id=item.slice(11),info=SIDE_SITES[id];if(info&&s.stage===id&&!wDone('site:'+id))startWorldBattle(info.enemy);return true;}
  if(item.startsWith('shrine:attune:')){const id=item.slice(14);if(s.stage!==id||!SIDE_SITES[id]||!wDone('site:'+id)||wDone('attune:'+id)||!carriesLantern()||lanternSparks()>=3)return true;
  w.done['attune:'+id]=true;s.lanternSparks=Math.min(3,s.lanternSparks+1);worldBeat('The flame answers the old signal',`The repaired lantern catches one quiet spark from a recovered shrine mechanism. ${lanternSparks()} / 3 sparks remain. The lantern itself remains in your Pack.`,true);return true;}
@@ -1856,7 +1872,7 @@ function worldScene(){
  };
  if(personalScenes[s.stage]){
   const q=personalScenes[s.stage],done=wDone('personal:'+q.id);
-  return {chapter:q.chapter,label:'A COMPANION’S PROMISE',heading:q.heading,text:[...q.text,done?'Your choice is made. '+COMPANIONS[q.id].name+' remembers it.':'You may choose what kind of help, if any, you are willing to give.'],lesson:'A companion’s personal quest can change their loyalty, relationships and future participation in the party.',choices:done?[wChoice('personalReturn:'+q.id,'Return to the main road','Continue the journey together—or apart','↝')]:[wChoice('personalResolve:'+q.id+':support','Help them make things right','Build trust and a lasting relationship','♡'),wChoice('personalResolve:'+q.id+':exploit','Turn the situation to your advantage','Gain 18 gp, risk their loyalty','♛')]};
+  return {chapter:q.chapter,label:'A COMPANION’S PROMISE',heading:q.heading,text:[...q.text,done?'Your choice is made. '+COMPANIONS[q.id].name+' remembers it.':'You may choose what kind of help, if any, you are willing to give.'],lesson:'A companion’s personal quest can change their loyalty, relationships and future participation in the party.',choices:done?[wChoice('personalReturn:'+q.id,'Return to the main road','Continue the journey together—or apart','↝')]:[wChoice('personalResolve:'+q.id+':support','Help them make things right',q.id==='corvin'?'Build trust · Persuasion DC 13 for the optional 8 gp repayment':'Build trust and a lasting relationship','♡'),wChoice('personalResolve:'+q.id+':exploit','Turn the situation to your advantage','Persuasion DC 14 · up to 18 gp, risk their loyalty','♛')]};
  }
  if(s.stage==='roadFireside')return {chapter:9,label:'FIRST COMPANIONS',heading:'Stories that survive the winter',text:[
   'The old camp was built around a communal hearth. Its chimney stones carry the names of people who kept the road open through famine and war; the names are worn at hand height, polished by generations of travelers.',
@@ -1991,12 +2007,18 @@ function worldAdditionalAction(item){const w=world();
   if(path==='support'){
    w.trust[id]=clamp(w.trust[id]+3,-3,5);w.clues++;worldLoyalty(1,-1);
    if(id==='tamsin'){s.potions=Math.min(20,s.potions+1);w.relief++;}
-   if(id==='corvin'){worldGain(8);}
+   if(id==='corvin'){
+    worldCheck('persuasion',13,'An honest repayment',
+      'Corvin negotiates compensation that the clerk can lawfully pay. Your party receives 8 gp in genuine earned wages.',
+      'The clerk refuses to authorize a cash repayment without better records. You have helped Corvin take responsibility, but receive no money today.',passed=>{if(passed)worldGain(8);});return true;
+   }
    worldBeat('An ally chooses to stay',id==='mara'?'You help Mara restore a dangerous old route marker, in full view of the family of a lost traveler. The patrol records become usable again, and she gives you a map she once feared showing anyone.':id==='tamsin'?'You commit time to keeping a neutral clinic supplied. Tamsin treats the sick first and offers you a healing potion in gratitude.':'Corvin admits his debt and negotiates restitution with the clerk he cheated. It costs him pride and time, but returns 8 gp in lawful wages to the company.',true);
   } else{
-   w.trust[id]=clamp(w.trust[id]-2,-3,5);worldGain(18);worldLoyalty(-1,2);
-   worldBeat('A debt collected',id==='mara'?'You sell Mara’s recovered patrol chart to the private wardens for 18 gp. The safer public route remains unmarked; she says nothing, but the next campfire is colder.':id==='tamsin'?'You transfer control of the neutral clinic to a toll company for 18 gp. Tamsin is furious that patients will now need money or permission to enter.':'You use Corvin’s vulnerable ledger to extort 18 gp from the guild. He sees exactly how you leveraged his confession, and withdraws some of his trust.',true);
+   w.trust[id]=clamp(w.trust[id]-2,-3,5);
    if(w.trust[id]<=-2)w.active=w.active.filter(x=>x!==id);
+   worldCheck('persuasion',14,'An offer with consequences',
+    id==='mara'?'The private wardens agree to pay 18 gp for Mara’s patrol chart. The public route remains unmarked, and her anger will follow you.':id==='tamsin'?'The toll company signs a contract for 18 gp, leaving patients subject to admission fees. Tamsin is furious.':'The guild pays 18 gp under pressure from Corvin’s ledger, but his trust in you is damaged.',
+    'The potential buyer refuses the deal. You gain no money, yet your companion still witnessed what you tried to sell and loses trust in you.',passed=>{if(passed){worldGain(18);worldLoyalty(-1,2);}else worldLoyalty(-1,0);});
   }
   return true;
  }
@@ -2011,6 +2033,7 @@ function worldAdditionalAction(item){const w=world();
 function worldAction(action){if(!action.startsWith('w:'))return false;
  if(s.storyResult||s.pending||s.mindOffer||world().battle?.active)return true;
  const item=action.slice(2);if(!WORLD_STAGES[s.stage]&&item!=='begin')return true;
+ const w=world();
  if(s.stage==='roadFinale'&&['mapOpen','partyOpen','chaptersOpen'].includes(item)){modal=item==='mapOpen'?'worldmap':item==='partyOpen'?'party':'chapters';render();return true;}
  const current=s.stage==='epilogue'?{choices:[wChoice('begin','Follow the newly revealed network','Set out into the wider world')]}:worldScene();
  const allowed=current.choices.some(c=>c&&c.key===action&&!c.locked&&availableStoryChoice(c));
@@ -2039,10 +2062,48 @@ function worldAction(action){if(!action.startsWith('w:'))return false;
   if(WORLD_STAGES[dest]!==WORLD_STAGES[s.stage])worldTravel(dest,title,text);else worldStep(dest,title,text);
   return true;
  }
- const jobs={cartJob:[10,'The caravan moves','You help repair a broken axle and unload sacks for travelers unable to pay tolls. The merchant pays 10 gp for the labor.'],moorAid:[9,'Food reaches the moor','Isolde has bread enough for the night and pays you 9 gp from her maintenance fund.'],portDelivery:[14,'The sealed goods arrive','Your upriver delivery reaches the families named in the ledger. A harbor captain pays the agreed 14 gp.']};
- if(jobs[item]){if(wDone(item))return true; if(item==='moorAid'){if(s.inventory.rations<1)return true;s.inventory.rations--;}
-  if(item==='portDelivery'){world().done.portDeliveryAccepted=true;world().cargo=true;worldBeat('A sealed crate in your keeping','You accept the delivery and its 14 gp fee, payable only when the supplies reach North Moor or Waycross. The crate weighs on your conscience and your pack; use the regional map to complete the actual journey.');return true;}
-  world().done[item]=true;worldGain(jobs[item][0]);worldLoyalty(1,0,{mara:1,tamsin:1});worldBeat(jobs[item][1],jobs[item][2]);return true;
+ // Paid help requires an uncertain skill check or a completed fight; selecting a job alone never pays.
+ if(item==='cartJob'||item==='moorAid')return true; // Old UI/save actions cannot mint new gold.
+ if(item==='portDelivery'){
+  if(s.stage!=='harbor'||wDone('portDeliveryAccepted'))return true;
+  world().done.portDeliveryAccepted=true;world().cargo=true;world().cargoReady=false;
+  worldBeat('A delivery, not a free reward','The Saltmere captain gives you the sealed crate. Payment is 14 gp on arrival in Waycross or North Moor, but first you must secure its passage by inspecting the manifest and navigating safely, or by defeating the charter thieves.');return true;
+ }
+ if(item==='job:cart:check'){
+  if(s.stage!=='waymarket'||wDone('cartJob')||wDone('job:cart:tried'))return true;
+  w.done['job:cart:tried']=true;
+  worldCheck('investigation',13,'The caravan axle and false bolts',
+   'You identify the deliberate damage, replace the damaged pin, and guide the sacks off the broken wagon. The merchant pays the promised 10 gp.',
+   'A warped pin snaps under your first repair. Nobody is injured, but the wagon remains unsafe and the merchant cannot pay you. The saboteurs are still nearby; you may face them instead.',
+   passed=>{if(passed){w.done.cartJob=true;worldGain(10);worldLoyalty(1,0,{mara:1,tamsin:1});}else s.hp=Math.max(1,s.hp-1);});return true;
+ }
+ if(item==='job:cart:fight'){
+  if(s.stage==='waymarket'&&!wDone('cartJob'))startWorldBattle('cartSaboteurs');return true;
+ }
+ if(item==='job:moor:check'){
+  if(s.stage!=='northmoor'||wDone('moorAid')||wDone('job:moor:tried'))return true;
+  if(!wDone('job:moor:supplied')){if(s.inventory.rations<1)return true;s.inventory.rations--;w.done['job:moor:supplied']=true;}
+  w.done['job:moor:tried']=true;
+  worldCheck('survival',13,'Supplies on a dangerous road',
+   'You choose a stable trail and bring Isolde the food without attracting the raiders. She pays 9 gp for the completed supply run.',
+   'The waystation is in sight, but raiders force you back before the parcel can be delivered. Isolde cannot pay for an undelivered load. You can clear the route by fighting.',
+   passed=>{if(passed){w.done.moorAid=true;worldGain(9);worldLoyalty(1,0,{mara:1,tamsin:1});}else s.hp=Math.max(1,s.hp-1);});return true;
+ }
+ if(item==='job:moor:fight'){
+  if(s.stage!=='northmoor'||wDone('moorAid'))return true;
+  if(!wDone('job:moor:supplied')){if(s.inventory.rations<1)return true;s.inventory.rations--;w.done['job:moor:supplied']=true;}
+  startWorldBattle('moorSupplyRaiders');return true;
+ }
+ if(item==='job:port:check'){
+  if(s.stage!=='harbor'||!w.cargo||w.cargoReady||wDone('job:port:tried'))return true;
+  w.done['job:port:tried']=true;
+  worldCheck('survival',14,'The cargo route and broken harbor seals',
+   'You navigate the dangerous shipping lanes, identify a forged toll stamp, and register the genuine cargo seal. The crate is now ready for delivery; the fee still requires traveling to its destination.',
+   'The thieves’ false trail hides the proper manifest. The captain will not recognize an unsecured load. You can confront the charter thieves and claim safe passage.',
+   passed=>{if(passed)w.cargoReady=true;else s.hp=Math.max(1,s.hp-1);});return true;
+ }
+ if(item==='job:port:fight'){
+  if(s.stage==='harbor'&&w.cargo&&!w.cargoReady)startWorldBattle('portCargoRaiders');return true;
  }
  if(item==='potion'||item==='rations'){const cost=item==='potion'?8:4;if(!worldCanSpend(cost))return true;worldGain(-cost);if(item==='potion')s.potions=Math.min(20,s.potions+1);else s.inventory.rations=Math.min(20,s.inventory.rations+2);worldBeat('A fair exchange',`You pay ${cost} gp for ${item==='potion'?'one Potion of Healing':'two travel rations'}. Your purse now contains ${world().gold} gp.`);return true;}
  if(item==='moorClue'||item==='fenRescue'||item==='portBroker'||item==='cryptSolve'){
@@ -2107,7 +2168,10 @@ const WORLD_ENCOUNTERS={
  watchRavagers:{stage:'moorWatch',name:'Tower scavengers',hp:23,ac:13,gold:0},
  reedWights:{stage:'fenReliquary',name:'Reed-bound guardians',hp:26,ac:13,gold:0},
  cisternBlades:{stage:'saltCistern',name:'Cistern smugglers',hp:28,ac:14,gold:0},
- bellSentinel:{stage:'bellCatacomb',name:'Bronze bell sentinel',hp:34,ac:15,gold:0}
+ bellSentinel:{stage:'bellCatacomb',name:'Bronze bell sentinel',hp:34,ac:15,gold:0},
+ cartSaboteurs:{stage:'waymarket',name:'Caravan saboteurs',hp:16,ac:12,gold:0},
+ moorSupplyRaiders:{stage:'northmoor',name:'Moor supply raiders',hp:18,ac:12,gold:0},
+ portCargoRaiders:{stage:'harbor',name:'Charter cargo thieves',hp:22,ac:13,gold:0}
 };
 function startWorldBattle(id){const info=WORLD_ENCOUNTERS[id];if(!info||info.stage!==s.stage)return;
  const hp=info.hp;
@@ -2132,8 +2196,12 @@ function worldBattleAction(action){const b=world().battle;if(!b?.active)return t
    const flag=b.encounter|| (b.origin==='glassfen'?'fenFight':'spireFight');world().done[flag]=true;
    const problem=frontierEncounterResolved(flag);if(problem)world().done[problem+'Resolved']=true;
    const siteId=Object.keys(SIDE_SITES).find(id=>SIDE_SITES[id].enemy===flag);if(siteId)earnSite(siteId,'combat');
+   let jobResult='';
+   if(flag==='cartSaboteurs'&&!wDone('cartJob')){world().done.cartJob=true;worldGain(10);jobResult='The caravan owner pays the agreed 10 gp for defending and repairing their wagon.';}
+   if(flag==='moorSupplyRaiders'&&!wDone('moorAid')&&wDone('job:moor:supplied')){world().done.moorAid=true;worldGain(9);jobResult='You recover the supplies and deliver them safely. Isolde pays the agreed 9 gp.';}
+   if(flag==='portCargoRaiders'&&world().cargo){world().cargoReady=true;jobResult='The stolen shipping seal is recovered. Your crate is now secure, but the 14 gp reward will only be paid at its destination.';}
    world().battle=null;world().encountersWon++;worldGain(info.gold);worldLoyalty(1,0,{mara:1});
-   worldBeat('The road is yours to walk',`You overcome ${info.name.toLowerCase()}. The road is now clear, and ${info.gold?`you recover ${info.gold} gp in usable supplies and toll money.`:'you secure the route without taking coin from its people.'} ${siteId?`Your exploration also yields ${SIDE_SITES[siteId].rewardGold} gp and ${SIDE_SITES[siteId].shards} emberglass fragment(s).`:''} The encounter has consequences and will not repeat when you revisit this place.`,true);return true;
+   worldBeat('The road is yours to walk',`You overcome ${info.name.toLowerCase()}. The road is now clear, and ${info.gold?`you recover ${info.gold} gp in usable supplies and toll money.`:'you secure the route without taking coin from its people.'} ${siteId?`Your exploration also yields ${SIDE_SITES[siteId].rewardGold} gp and ${SIDE_SITES[siteId].shards} emberglass fragment(s).`:''} ${jobResult} The encounter has consequences and will not repeat when you revisit this place.`,true);return true;
   }
   if(next==='flee'||next==='defeat'){world().battle=null;if(next==='defeat')s.hp=Math.max(s.hp,1);worldBeat('You withdraw and regroup',next==='defeat'?(world().active.length?'An ally distracts the attackers while you retreat.':'You throw yourself behind a fallen marker and crawl out of the attackers’ reach.')+' At 1 HP you can rest, heal, or take a noncombat route.':'You abandon this fight for now. Its opponents will remain until you resolve the situation or choose a different way forward.');return true;}
   if(next==='enemy'){
