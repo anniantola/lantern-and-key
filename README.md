@@ -1,3 +1,17 @@
+# Lantern & Key v3.2.2 — Narrative Integrity Patch
+
+This update repairs the continuity and consequence issues identified in the v3.2.1 full-campaign audit. The 16 chapters, optional dungeons, companion quests, four waylight resolutions, skill checks, shops, and Last Lantern remain playable. The existing JSON save format and GitHub Pages installation are preserved.
+
+**Fixes:** Glassfen rescue completion now persists after either a clean or costly rescue; a failed rescue check still brings the stranded barge ashore but never awards success-only gold. Negotiating a public mandate at the Worldheart takes a day (and a ration or fatigue), records an actual signed mandate rather than fabricating ledger clues or relief donations, and cannot be retried with the same offer after failure. You can gather real evidence or offer real aid and then return to negotiate. The Waycross story distinguishes a paid pass from exposing the fraudulent books. Optional and frontier narration no longer presumes companions who are not traveling with you. The independent Worldheart route requires time and resources to reconcile privately claimed lights, with the cost reflected in the outcome. Long rests and foraging are unavailable in sealed ruins and Worldheart chambers; safe settlements and appropriate wilderness camps still offer them. Short rests remain available where a pause is plausible.
+
+**Older saves:** Completed Glassfen rescue states migrate on load, including costly rescues. Existing inventory, quests, companions, waylight decisions and previous endings stay intact. The new independent-settlement cost is recorded on newly completed endings; prior completed endings are not retroactively charged. Older Worldheart saves that already acquired sufficient support retain their access to public restoration. Save export/import still works as before.
+
+**Update existing GitHub repository:** Replace `game.js`, `sw.js`, `tests-world.cjs`, `README.md` and (optionally) `RULES-AUDIT.md` in the repository root. No folders or `.github/workflows/deploy.yml` changes are required. Existing workflow uses `node --test tests-core.cjs`, which already loads `tests-world.cjs`.
+
+**Before updating:** Export your current JSON save from Settings. The service worker update is non-forcing; reopen the app or accept the update prompt when offered. Run `node --test tests-core.cjs` on Node 22+ to verify all core and narrative regression tests.
+
+---
+
 # Lantern & Key v3.2.1 — Paid Work & Optional Adventure Reliability
 
 This corrective update audits Act II's optional quests and keeps the Watchroad story, existing characters, lantern powers, companion trust, weapon shops, and four waylight resolutions intact.

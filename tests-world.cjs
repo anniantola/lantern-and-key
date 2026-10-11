@@ -653,3 +653,108 @@ for(const [roll,paid] of [[0.99,true],[0,false]]){
   assert.equal(s.frontier.trust.mara,-2);
  });
 }
+
+// v3.2.2 — narrative integrity checks: both success/failure branches and legacy saves.
+test('Glassfen costly rescue still saves the stranded crew, without awarding success-only gold',()=>{
+ const {t,s}=visitPaidJob('glassfen',0);
+ const beforeGold=s.frontier.gold;
+ use(t,'fenRescue');
+ assert.equal(s.frontier.done.fenRescue,true);
+ assert.equal(s.frontier.done.fenRescueSafe,true);
+ assert.notEqual(s.frontier.done.fenRescueSuccess,true);
+ assert.equal(s.frontier.gold,beforeGold);
+ const scene=t.worldScene();assert(scene.text.join(' ').includes('no longer stranded'));
+ assert(!scene.choices.some(c=>c.key==='w:fenRescue'));
+});
+test('Glassfen successful rescue is remembered and does not pay twice',()=>{
+ const {t,s}=visitPaidJob('glassfen',0.99);const old=s.frontier.gold;
+ use(t,'fenRescue');assert.equal(s.frontier.done.fenRescueSafe,true);
+ assert.equal(s.frontier.done.fenRescueSuccess,true);assert.equal(s.frontier.gold,old+5);
+ use(t,'fenRescue');assert.equal(s.frontier.gold,old+5);
+});
+test('Legacy saves reconcile a completed costly Glassfen rescue without inventing a reward',()=>{
+ const t=seeded('glassfen');const w=t.freshWorld();w.done.fenRescue=true;
+ const normalized=t.normalizeWorld(w);assert.equal(normalized.done.fenRescueSafe,true);
+ assert.equal(normalized.done.fenRescueSuccess,undefined);
+});
+test('Winning a public mandate takes a day but creates no imaginary evidence or relief',()=>{
+ const t=seeded('worldheart',0.99),s=t.get();s.unlocked=16;s.frontier=t.freshWorld();
+ s.frontier.beacons.waygate='claimed';s.frontier.gold=0;s.inventory.rations=1;
+ const oldDay=s.frontier.day;use(t,'prepareCommons');
+ assert.equal(s.frontier.day,oldDay+1);assert.equal(s.inventory.rations,0);
+ assert.equal(s.frontier.done.commonsMandate,true);
+ assert.equal(s.frontier.clues,0);assert.equal(s.frontier.relief,0);assert.equal(s.frontier.reputation.keepers,0);
+ use(t,'finalRestore');assert.equal(s.frontier.ending,'restore');
+ assert.equal(s.frontier.beacons.waygate,'restored');
+});
+test('Failed public appeal costs a day and needs a materially changed offer to retry',()=>{
+ const t=seeded('worldheart',0),s=t.get();s.unlocked=16;s.frontier=t.freshWorld();
+ s.frontier.beacons.moor='claimed';s.frontier.gold=0;s.inventory.rations=1;
+ use(t,'prepareCommons');assert.equal(s.frontier.day,2);
+ assert.equal(s.frontier.done.commonsMandate,undefined);
+ use(t,'prepareCommons');assert.equal(s.frontier.day,2);
+ const appeal=t.worldScene().choices.find(c=>c.key==='w:prepareCommons');
+ assert(appeal && appeal.locked);
+ s.frontier.clues++;use(t,'prepareCommons');assert.equal(s.frontier.day,3);
+ assert.equal(s.frontier.clues,1);
+});
+test('Waycross purchased passage never fabricates proof that the toll books were resolved',()=>{
+ const t=seeded('wayInvestigation'),s=t.get();s.unlocked=10;s.frontier=t.freshWorld();
+ use(t,'bribe:wayInvestigation');assert.equal(s.frontier.done.wayInvestigationPaid,true);
+ assert.notEqual(s.frontier.done.wayInvestigationProven,true);
+ use(t,'continue:wayInvestigation');assert.equal(s.stage,'waygate');
+ const narrative=t.worldScene().text.join(' ');
+ assert(narrative.includes('did not expose the false toll ledger'));
+});
+test('Waycross successful investigation remembers evidence instead of a paid pass',()=>{
+ const t=seeded('wayInvestigation',0.99),s=t.get();s.unlocked=10;s.frontier=t.freshWorld();
+ use(t,'challenge:wayInvestigation');assert.equal(s.frontier.done.wayInvestigationProven,true);
+ assert.notEqual(s.frontier.done.wayInvestigationPaid,true);
+ use(t,'continue:wayInvestigation');assert(t.worldScene().text.join(' ').includes('signed witness'));
+});
+test('Travelling alone never inserts Tamsin, Mara or Corvin into unrelated scenes',()=>{
+ for(const [stage,chapter] of [['moorPass',11],['harborTribunal',13],['cryptArchive',14],['citadelDebate',15],['moorWatch',11],['saltCistern',13]]){
+  const t=seeded(stage),s=t.get();s.frontier=t.freshWorld();s.unlocked=chapter;
+  const text=t.worldScene().text.join(' ');
+  assert(!/Mara, if present|Tamsin identifies|Your companions read|Your companions disagree|Corvin has seen|Mara recognizes/.test(text),stage+': '+text);
+ }
+});
+test('Long rests and foraging require a plausible campsite or settlement',()=>{
+ for(const stage of ['cryptThreshold','cryptArchive','citadelSpire','worldheart','heartTrial','bellCatacomb']){
+  const t=seeded(stage),s=t.get();s.unlocked=16;s.frontier=t.freshWorld();
+  const choices=t.worldRestChoices();assert(!choices.some(c=>['w:rest:long','w:rest:forage'].includes(c.key)),stage);
+  const day=s.frontier.day,food=s.inventory.rations,hp=s.hp;
+  use(t,'rest:long');use(t,'rest:forage');
+  assert.equal(s.frontier.day,day);assert.equal(s.inventory.rations,food);assert.equal(s.hp,hp);
+ }
+ const t=seeded('northmoor'),s=t.get();s.frontier=t.freshWorld();s.unlocked=11;
+ assert(t.worldRestChoices().some(c=>c.key==='w:rest:forage'));
+ assert(t.worldRestChoices().some(c=>c.key==='w:rest:long'));
+});
+test('The independence finale accounts for prior private claims in time, funds and supplies',()=>{
+ const t=seeded('worldheart'),s=t.get();s.frontier=t.freshWorld();s.unlocked=16;
+ s.frontier.beacons={waygate:'claimed',moor:'claimed',fen:'independent',harbor:'restored'};
+ s.frontier.gold=10;s.inventory.rations=1;s.hp=15;
+ use(t,'finalFree');
+ assert.equal(s.frontier.ending,'free');
+ assert.equal(s.frontier.day,5);
+ assert.equal(s.frontier.gold,0);assert.equal(s.inventory.rations,0);
+ assert.equal(s.frontier.freeAccordCost.claims,2);
+ assert.equal(s.frontier.freeAccordCost.spentGold,10);
+ assert.equal(s.frontier.freeAccordCost.spentRations,1);
+ assert(Object.values(s.frontier.beacons).every(x=>x==='independent'));
+ assert(t.worldScene().text.join(' ').includes('settlement'));
+});
+test('No money independence still requires time and imposes fatigue for disputed claims',()=>{
+ const t=seeded('worldheart'),s=t.get();s.frontier=t.freshWorld();s.unlocked=16;
+ s.frontier.beacons={waygate:'claimed',moor:'claimed',fen:'claimed',harbor:'claimed'};
+ s.frontier.gold=0;s.inventory.rations=0;s.hp=17;
+ use(t,'finalFree');assert.equal(s.frontier.day,9);
+ assert.equal(s.hp,9);assert.equal(s.frontier.freeAccordCost.spentHp,8);
+});
+test('Import normalization bounds recorded independence costs',()=>{
+ const t=seeded(),w=t.freshWorld();w.freeAccordCost={days:'<svg onload=alert(1)>',claims:10000000,spentGold:NaN,spentRations:1,spentHp:2};
+ const n=t.normalizeWorld(w);assert.equal(n.freeAccordCost.days,0);
+ assert.equal(n.freeAccordCost.claims,9999);
+ assert.equal(n.freeAccordCost.spentGold,0);
+});

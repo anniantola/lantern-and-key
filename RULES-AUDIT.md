@@ -1,3 +1,14 @@
+## v3.2.2 — Narrative adjudication and location rules
+
+- A failed Glassfen rescue check represents a costly **successful evacuation**, not a still-unresolved rescue. It awards no success-only gold and still imposes the HP cost. The rescue-completed state is reconciled in older saves.
+- A public mandate is a separate political result from evidence gathered, keeper reputation, or relief supplied. A persuasion success grants the signed mandate; it does not silently award clues, relief or faction standing. Each attempt consumes one day and provisions/fatigue. An unchanged failed offer cannot be spammed; new material support is required before retrying.
+- Paying the Waycross guard buys passage but **does not prove** that the toll ledger is fraudulent. Verified evidence, private payment, and other passage methods have separate flags and narration.
+- Ending independent stewardship uses original campaign rules: relinquishing earlier private claims consumes settlement time and money, rations or travel HP, with recorded costs. It is not an SRD mechanic.
+- Long rests are available at supported waystations or settlements. Foraging is confined to suitable outdoor stages (travelers’ camp, North Moor, Glassfen). Short rests remain broadly usable outside combat. These are DM-specific environmental judgments.
+- NPC/companion references depend on who is actually present; no unattached companion is assumed to have intervened.
+
+---
+
 ## v3.2 — Homebrew adventure equipment and companion assistance
 
 The five additional expedition sites, emberglass, shrine recharging, weapon improvement, protective buckle, flashpowder, field bandages, and one-use companion planning bonus are original **homebrew tutorial mechanics**, not published SRD 5.2.1 item or feat entries. Their use is deliberately explicit in the in-game interface. A purchased weapon upgrade grants +1 to the preset hero's Act II attack roll and damage; the protective buckle grants +1 AC in that combat system; each is a simplified equipment mechanic, not a full equipment proficiency or attunement simulation. The Last Lantern remains nonconsumable and its sparks are a separate, limited resource. Companion conversations are persistent narrative choices and can alter relationships or grant a single future skill bonus. This addition does not imply that D&D requires an NPC to provide automatic bonuses for conversation.
